@@ -1,0 +1,2 @@
+model_yolov4/yolov4.weights filter=lfs diff=lfs merge=lfs -text
+dist/main.exe filter=lfs diff=lfs merge=lfs -text
