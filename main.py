@@ -156,6 +156,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_vehicle_location.clear()
         self.all_veh_conf.clear()
         self.select_file = self.list_file_path[QModelIndex.row()]
+        self.spinBox_CurAnnNum.setValue(-1)
 
         # 读入图像
         if self.select_file.split('.')[-1] == 'jpg':
@@ -395,12 +396,15 @@ class Main(QMainWindow, Ui_MainWindow):
     def clear_single_annotation(self):
         frame_copy_ = self.frame_copy.copy()
         if len(self.all_vehicle_size) > 0:
+            self.all_veh_2dbbox.pop(-1)  # fix
             self.all_3dbbox_2dvertex.pop(-1)
+            self.all_vehicle_type.pop(-1)  # fix
             self.all_vehicle_size.pop(-1)
             self.all_perspective.pop(-1)
             self.all_base_point.pop(-1) # 基准点p1
             self.all_3dbbox_3dvertex.pop(-1)
             self.all_vehicle_location.pop(-1)
+            self.all_veh_conf.pop(-1)  # fix
             for i in range(len(self.list_box)):
                 # 绘制2D box
                 left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
