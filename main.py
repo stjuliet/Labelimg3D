@@ -52,6 +52,14 @@ class Main(QMainWindow, Ui_MainWindow):
         # 初始化label背景色为全黑
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # 设置样式表
 
+    def closeEvent(self, event):
+        reply = QMessageBox.information(self, "info", "Are you sure to exit?",
+                                        QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            sys.exit()
+        else:
+            event.ignore()
+
     def center(self):  # 定义一个函数使得窗口居中显示
         # 获取屏幕坐标系
         screen = QDesktopWidget().screenGeometry()
