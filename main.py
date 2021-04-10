@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import cv2 as cv
 import sys
 from interface import *
@@ -130,6 +131,8 @@ class Main(QMainWindow, Ui_MainWindow):
         '''选择标注文件夹'''
         self.list_file_path = []
         self.str_folder_path = QFileDialog.getExistingDirectory(self, "Choose Folder", os.getcwd())
+        # 支持中文路径
+        self.str_folder_path = self.str_folder_path.encode("utf-8").decode("utf-8")
 
         parent = os.path.abspath(os.path.join(self.str_folder_path, os.pardir))
         # yolov4 model files and thread initialize
@@ -171,7 +174,11 @@ class Main(QMainWindow, Ui_MainWindow):
 
         # 读入图像
         if self.select_file.split('.')[-1] == 'jpg':
-            self.frame = cv.imread(self.select_file)  # 读取选中行
+            # 支持中文路径
+            buf_data = np.fromfile(self.select_file, dtype=np.uint8)
+            self.frame = cv.imdecode(buf_data, 1)  # 读入彩色图像
+
+            # self.frame = cv.imread(self.select_file)  # 读取选中行
             self.frame_copy = deepcopy(self.frame)
         else:
             return
