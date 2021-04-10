@@ -427,6 +427,7 @@ class Main(QMainWindow, Ui_MainWindow):
             # 如果未保存，但是按了清空，下面条件不满足，但是上面参数还在，按保存仍然会保存进去，因此要清空上面一些变量
             # 如果保存了，同时按了清空，下面条件满足，弹出最后存进去的信息，不作保存
             if len(self.all_vehicle_size) > 0:
+                self.veh_box = []  # fix 清空当前帧已在图像中清空的所选目标，防止其加入到list中
                 self.all_veh_2dbbox.pop(-1)  # fix
                 self.all_3dbbox_2dvertex.pop(-1)
                 self.all_vehicle_type.pop(-1)  # fix
