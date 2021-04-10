@@ -26,6 +26,9 @@ class Main(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.center()  # 居中窗口显示
 
+        self.frame = None
+        self.pushButton_ClearAnnotations.setEnabled(False)
+
         self.perspective = "right"
         if self.perspective == "right":
             self.radioButton_BasePointRight.setChecked(True)
@@ -268,47 +271,48 @@ class Main(QMainWindow, Ui_MainWindow):
     def spin_cur_anno_order(self):
         '''选择标注对象'''
         # 如果有标注文件, 可以修改标注过的数据
-        if os.path.exists(self.select_file_xml):
-            self.obj_num = len(self.all_vehicle_size)
-            if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
-                self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # 最大只能设置到目标数
-                self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value()]
-                self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value()].lower()
-                self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
-
-                self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value()]
-                self.base_point = self.all_base_point[self.spinBox_CurAnnNum.value()]
-                self.veh_base_point = self.base_point
-
-                self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
-                self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
-                self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
-
-                self.drawbox_img = self.draw_3dbox(self.frame)
-
-        else: # 重新标注
-            try:
+        if self.frame is not None:
+            if os.path.exists(self.select_file_xml):
+                self.obj_num = len(self.all_vehicle_size)
                 if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
                     self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # 最大只能设置到目标数
-                    self.veh_box = self.list_box[self.spinBox_CurAnnNum.value()]
-                    self.veh_type = self.list_type[self.spinBox_CurAnnNum.value()]
-                    self.veh_conf = self.list_conf[self.spinBox_CurAnnNum.value()]
+                    self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value()]
+                    self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value()].lower()
                     self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
-                    # 每次开始标注新对象时, 将滚动条复位
-                    self.horizontalSlider_BasePointAdj_LR.setValue(0)
-                    self.verticalSlider_BasePointAdj_UD.setValue(0)
-                    self.horizontalSlider_VPAdj_LR.setValue(0)
-                    if self.perspective == 'left':
-                        self.base_point = (self.veh_box[0], self.veh_box[1] + self.veh_box[3])
-                        self.veh_base_point = self.base_point
-                    elif self.perspective == 'right':  # right
-                        self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
-                        self.veh_base_point = self.base_point
+
+                    self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value()]
+                    self.base_point = self.all_base_point[self.spinBox_CurAnnNum.value()]
+                    self.veh_base_point = self.base_point
+
+                    self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
+                    self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
+                    self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
+
                     self.drawbox_img = self.draw_3dbox(self.frame)
 
-            except:
-                QMessageBox.information(self, "Information", "Please choose one vehicle! ",
-                                        QMessageBox.Yes | QMessageBox.No)
+            else: # 重新标注
+                try:
+                    if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
+                        self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # 最大只能设置到目标数
+                        self.veh_box = self.list_box[self.spinBox_CurAnnNum.value()]
+                        self.veh_type = self.list_type[self.spinBox_CurAnnNum.value()]
+                        self.veh_conf = self.list_conf[self.spinBox_CurAnnNum.value()]
+                        self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
+                        # 每次开始标注新对象时, 将滚动条复位
+                        self.horizontalSlider_BasePointAdj_LR.setValue(0)
+                        self.verticalSlider_BasePointAdj_UD.setValue(0)
+                        self.horizontalSlider_VPAdj_LR.setValue(0)
+                        if self.perspective == 'left':
+                            self.base_point = (self.veh_box[0], self.veh_box[1] + self.veh_box[3])
+                            self.veh_base_point = self.base_point
+                        elif self.perspective == 'right':  # right
+                            self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
+                            self.veh_base_point = self.base_point
+                        self.drawbox_img = self.draw_3dbox(self.frame)
+
+                except:
+                    QMessageBox.information(self, "Information", "Please choose one vehicle! ",
+                                            QMessageBox.Yes | QMessageBox.No)
 
 
 
@@ -364,93 +368,112 @@ class Main(QMainWindow, Ui_MainWindow):
     def save_temp_annotation_results(self):
         '''保存单个车辆标注结果'''
         # 如果有标注文件, 可以修改标注过的数据
-        if os.path.exists(self.select_file_xml):
-            self.frame = self.drawbox_img
-
-            self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
-            self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
-            self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
-            self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
-            self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
-            self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
-            self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
-
-        else:
-            if self.veh_box:
+        if self.frame is not None:
+            if os.path.exists(self.select_file_xml):
                 self.frame = self.drawbox_img
-                self.all_veh_2dbbox.append(self.veh_box)
-                self.all_3dbbox_2dvertex.append(self.list_3dbbox_2dvertex)
-                self.all_vehicle_type.append(self.comboBox_CurAnnType.currentText())
-                self.all_vehicle_size.append([self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(), self.doubleSpinBox_Bbox3D_Height.value()])
-                self.all_perspective.append(self.perspective)
-                self.all_base_point.append(self.list_3dbbox_2dvertex[1])  # 基准点p1
-                self.all_3dbbox_3dvertex.append(self.list_3dbbox_3dvertex)
-                self.all_vehicle_location.append(self.centroid_2d)
-                self.all_veh_conf.append(self.veh_conf)
+
+                self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
+                self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
+                self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
+                self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
+                self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
+                self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
+                self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
+
             else:
-                return
+                # 如果没有清空过，则只要有信息、并且信息不和上一次的重复即可添加
+                # 如果清空过，并且all信息列表为空，则不保存
+                if self.veh_box:
+                    try:  # 找到则不添加
+                        index = self.all_veh_2dbbox.index(self.veh_box)
+                        QMessageBox.information(self, "提示", "repeated element!", QMessageBox.Yes)
+                    except:  # 找不到再添加
+                        self.frame = self.drawbox_img
+                        self.all_veh_2dbbox.append(self.veh_box)
+                        self.all_3dbbox_2dvertex.append(self.list_3dbbox_2dvertex)
+                        self.all_vehicle_type.append(self.comboBox_CurAnnType.currentText())
+                        self.all_vehicle_size.append([self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(), self.doubleSpinBox_Bbox3D_Height.value()])
+                        self.all_perspective.append(self.perspective)
+                        self.all_base_point.append(self.list_3dbbox_2dvertex[1])  # 基准点p1
+                        self.all_3dbbox_3dvertex.append(self.list_3dbbox_3dvertex)
+                        self.all_vehicle_location.append(self.centroid_2d)
+                        self.all_veh_conf.append(self.veh_conf)
+                        self.pushButton_ClearAnnotations.setEnabled(True)
+                else:
+                    return
 
     def save_annotation_results(self):
         '''保存单个图像车辆标注结果'''
-        if self.all_3dbbox_2dvertex:
-            # 保存标注图像
-            cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
-            xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"  # xml与图像同名
-            save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
-            self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location)
-        else:
-            return
+        if self.frame is not None:
+            if self.all_3dbbox_2dvertex:
+                # 保存标注图像
+                cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
+                xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"  # xml与图像同名
+                save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
+                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location)
+            else:
+                return
 
     def clear_single_annotation(self):
+        """
+        1\ 未保存时清空
+        2\ 保存后清空
+        :return:
+        """
         frame_copy_ = self.frame_copy.copy()
-        if len(self.all_vehicle_size) > 0:
-            self.all_veh_2dbbox.pop(-1)  # fix
-            self.all_3dbbox_2dvertex.pop(-1)
-            self.all_vehicle_type.pop(-1)  # fix
-            self.all_vehicle_size.pop(-1)
-            self.all_perspective.pop(-1)
-            self.all_base_point.pop(-1) # 基准点p1
-            self.all_3dbbox_3dvertex.pop(-1)
-            self.all_vehicle_location.pop(-1)
-            self.all_veh_conf.pop(-1)  # fix
-            for i in range(len(self.list_box)):
-                # 绘制2D box
-                left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
-                    self.list_box[i][0]) + int(
-                    self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
-                cv.rectangle(frame_copy_, (left, top), (right, bottom), (0, 0, 255), 3)
-                label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
+        if self.frame is not None:
+            self.pushButton_ClearAnnotations.setEnabled(False)
+            # self.pushButton_ClearAnnotations.setEnabled(False)
+            # 如果未保存，但是按了清空，下面条件不满足，但是上面参数还在，按保存仍然会保存进去，因此要清空上面一些变量
+            # 如果保存了，同时按了清空，下面条件满足，弹出最后存进去的信息，不作保存
+            if len(self.all_vehicle_size) > 0:
+                self.all_veh_2dbbox.pop(-1)  # fix
+                self.all_3dbbox_2dvertex.pop(-1)
+                self.all_vehicle_type.pop(-1)  # fix
+                self.all_vehicle_size.pop(-1)
+                self.all_perspective.pop(-1)
+                self.all_base_point.pop(-1) # 基准点p1
+                self.all_3dbbox_3dvertex.pop(-1)
+                self.all_vehicle_location.pop(-1)
+                self.all_veh_conf.pop(-1)  # fix
+                for i in range(len(self.list_box)):
+                    # 绘制2D box
+                    left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
+                        self.list_box[i][0]) + int(
+                        self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
+                    cv.rectangle(frame_copy_, (left, top), (right, bottom), (0, 0, 255), 3)
+                    label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
 
-                # Display the label at the top of the bounding box
-                labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                top = max(top, labelSize[1])
-                cv.rectangle(frame_copy_, (left, top - round(1.5 * labelSize[1])),
-                             (left + round(1.5 * labelSize[0]), top + baseLine),
-                             (255, 255, 255), cv.FILLED)
-                cv.putText(frame_copy_, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
-            for i in range(len(self.all_vehicle_size)):  # 清空当前车辆数后的列表
-                imgcopy = self.paint(frame_copy_, self.all_3dbbox_2dvertex[i], (self.all_vehicle_location[i][0], self.all_vehicle_location[i][1]))
-            self.frame = frame_copy_
-            self.spinBox_CurAnnNum.setValue(-1)
-            self.show_img_in_label(self.label_ImageDisplay, frame_copy_)
-        else:
-            for i in range(len(self.list_box)):
-                # 绘制2D box
-                left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
-                    self.list_box[i][0]) + int(
-                    self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
-                cv.rectangle(self.frame_copy, (left, top), (right, bottom), (0, 0, 255), 3)
-                label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
+                    # Display the label at the top of the bounding box
+                    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    top = max(top, labelSize[1])
+                    cv.rectangle(frame_copy_, (left, top - round(1.5 * labelSize[1])),
+                                 (left + round(1.5 * labelSize[0]), top + baseLine),
+                                 (255, 255, 255), cv.FILLED)
+                    cv.putText(frame_copy_, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+                for i in range(len(self.all_vehicle_size)):  # 清空当前车辆数后的列表
+                    imgcopy = self.paint(frame_copy_, self.all_3dbbox_2dvertex[i], (self.all_vehicle_location[i][0], self.all_vehicle_location[i][1]))
+                self.frame = frame_copy_
+                self.spinBox_CurAnnNum.setValue(self.spinBox_CurAnnNum.value() - 1)
+                self.show_img_in_label(self.label_ImageDisplay, frame_copy_)
+            else:
+                for i in range(len(self.list_box)):
+                    # 绘制2D box
+                    left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
+                        self.list_box[i][0]) + int(
+                        self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
+                    cv.rectangle(self.frame_copy, (left, top), (right, bottom), (0, 0, 255), 3)
+                    label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
 
-                # Display the label at the top of the bounding box
-                labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                top = max(top, labelSize[1])
-                cv.rectangle(self.frame_copy, (left, top - round(1.5 * labelSize[1])),
-                             (left + round(1.5 * labelSize[0]), top + baseLine),
-                             (255, 255, 255), cv.FILLED)
-                cv.putText(self.frame_copy, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
-            self.frame = self.frame_copy
-            self.show_img_in_label(self.label_ImageDisplay, self.frame_copy)
+                    # Display the label at the top of the bounding box
+                    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    top = max(top, labelSize[1])
+                    cv.rectangle(self.frame_copy, (left, top - round(1.5 * labelSize[1])),
+                                 (left + round(1.5 * labelSize[0]), top + baseLine),
+                                 (255, 255, 255), cv.FILLED)
+                    cv.putText(self.frame_copy, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+                self.frame = self.frame_copy
+                self.show_img_in_label(self.label_ImageDisplay, self.frame_copy)
 
     def combo_cur_anno_type(self):
         pass
