@@ -669,7 +669,7 @@
    <slot>spind_3dbbox_length()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1087</x>
+     <x>1138</x>
      <y>393</y>
     </hint>
     <hint type="destinationlabel">
@@ -685,7 +685,7 @@
    <slot>spind_3dbbox_width()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1193</x>
+     <x>1252</x>
      <y>393</y>
     </hint>
     <hint type="destinationlabel">
@@ -763,6 +763,7 @@
   <signal>triggered()</signal>
   <signal>clicked()</signal>
   <signal>valueChanged(int)</signal>
+  <signal>editingFinished()</signal>
   <slot>choose_img_folder()</slot>
   <slot>save_annotation_results()</slot>
   <slot>slider_bp_adjust_lr()</slot>
@@ -779,5 +780,6 @@
   <slot>listview_doubleclick_slot()</slot>
   <slot>save_temp_annotation_results()</slot>
   <slot>clear_single_annotation()</slot>
+  <slot>edit()</slot>
  </slots>
 </ui>
