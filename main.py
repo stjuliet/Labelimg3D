@@ -12,9 +12,6 @@ from copy import deepcopy
 import re
 import xml.etree.ElementTree as ET
 from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, save3dbbox_result, dashLine
-from pynput.keyboard import Key, Controller
-from keyboard import KeyboardClass
-
 
 
 # 初始化读取车辆类型字典
@@ -58,10 +55,6 @@ class Main(QMainWindow, Ui_MainWindow):
         self.label_ImageDisplay.setScaledContents(True)
         # 初始化label背景色为全黑
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # 设置样式表
-
-        # self.t = KeyboardClass()
-        # self.t.start()
-
 
     def closeEvent(self, event):
         reply = QMessageBox.information(self, "info", "Are you sure to exit?",

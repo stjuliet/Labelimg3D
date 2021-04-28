@@ -46,11 +46,13 @@
 
 ​	（6）重复（1）--（5）完成标注文件夹中所有图片的标注。
 
+当有标注错误时，可点击界面上新增的Clear按钮清除，然后重新标注。
+
 
 
 标注示例：
 
-xml文件包含图片路径、图片尺寸/深度、对应场景标定文件路径、车辆类型、3d bbox在图像中对应8个顶点坐标、真实车辆三维物理尺寸。（可扩展：基准点类型、基准点3D世界坐标、车辆三维质心在图像中的投影坐标）
+xml文件包含：图片路径、图片尺寸/通道数、对应场景标定文件路径、车辆类型、2d box左上角点图像坐标及像素宽高、3d bbox在图像中对应8个顶点坐标、车辆三维物理尺寸（单位：m）、基准点方向（视角）、基准点图像坐标、3d bbox在真实世界中对应8个顶点坐标、车辆3d bbox中心点图像坐标。
 
 ![1602039817322](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/1602039817322.png)
 
@@ -72,17 +74,17 @@ xml文件包含图片路径、图片尺寸/深度、对应场景标定文件路�
 
 (目录树制作参考：https://blog.csdn.net/qq_36910634/article/details/103888113)
 
-├─model_yolov4
+├─model_yolov4  # 模型存放文件夹
 
-│      coco.names
+│      coco.names  # 类型文件
 
-│      yolov4.cfg
+│      yolov4.cfg  # 模型配置文件
 
-│      yolov4.weights
+│      yolov4.weights  # 模型权重
 
 │      
 
-├─test_images(支持jpg/png/bmp格式)
+├─test_images(支持jpg/png/bmp格式)  # 需要标注文件存放文件夹
 
 │  │  session0_centre_scene5060.bmp
 
@@ -152,9 +154,9 @@ xml文件包含图片路径、图片尺寸/深度、对应场景标定文件路�
 
 │  │  
 
-│  └─calib
+│  └─calib   # 标定文件存放文件夹
 
-│          session0_centre_calibParams.xml
+│          session0_centre_calibParams.xml   # 标定文件
 
 
 
@@ -162,7 +164,7 @@ xml文件包含图片路径、图片尺寸/深度、对应场景标定文件路�
 
 打包命令行：
 
-`pyinstaller -F -w main.py`
+`pyinstaller -F -w -i resource/labelimg3d.ico main.py`
 
 - [x] 开发标注工具时，使用了带Cuda加速的OpenCV DNN模块调用最新的YOLOv4目标检测模型，在封装时出现以下问题：![1602041813513](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/1602041813513.png)
 
@@ -176,7 +178,9 @@ xml文件包含图片路径、图片尺寸/深度、对应场景标定文件路�
 
 ### 3、网络损失函数设计
 
-- 网络输入：RGB图像，输出：在特征图车辆中心点位置处，车辆类型概率、8点二维图像坐标、车辆实际长宽高
+- 网络输入：RGB图像
+- 网络输出：车辆类型热力图、车辆中心点图像坐标、3d bbox的8个顶点图像坐标、车辆三维物理尺寸
 - 车辆类别损失（交叉熵）
 - 8点二维图像坐标损失（L1）
+- 车辆三维尺寸损失（L1）
 - 由基准点反算至世界坐标，根据预测所得长宽高推算8点二维图像坐标，再计算8点二维图像坐标损失（L1）
