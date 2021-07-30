@@ -14,7 +14,7 @@
 
 ​	主界面包含四部分：菜单栏、图片显示区、标注选项区、文件列表区。
 
-![1602038765138](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/1602038765138.png)
+![main-page](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/main-page.png)
 
 
 
@@ -40,7 +40,7 @@
 
 ​	（3）调节基准点、消失点及车辆物理尺寸使得3d bbox与二维检测框具有最高的贴合程度；
 
-​	（4）当标注完成一个车辆时，使用"Ctrl+A"保存标注结果，重复（1）--（4）完成一张图像中所有可标注车辆的标注；
+​	（4）当标注完成一个车辆时，使用"Ctrl+A"保存标注结果，如果标注有误，可点击"Clear"撤销重新进行标注，重复（1）--（4）完成一张图像中所有可标注车辆的标注；
 
 ​	（5）当一张图像中所有可标注车辆均已完成标注，使用"Ctrl+S"保存全部标注结果，输出xml标注文件至图像所在路径，完成标注；
 
@@ -56,7 +56,7 @@ xml文件包含：图片路径、图片尺寸/通道数、对应场景标定文�
 
 ![1602039817322](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/1602039817322.png)
 
-![image-20201008195142647](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/image-20201008195142647.png)
+![example-annotation](https://github.com/stjuliet/Labelimg3D/blob/master/pictures/example-annotation.png)
 
 8个点坐标存储顺序：
 
@@ -180,7 +180,8 @@ xml文件包含：图片路径、图片尺寸/通道数、对应场景标定文�
 
 - 网络输入：RGB图像
 - 网络输出：车辆类型热力图、车辆中心点图像坐标、3d bbox的8个顶点图像坐标、车辆三维物理尺寸
-- 车辆类别损失（交叉熵）
+- 车辆类别损失（focal loss）
 - 8点二维图像坐标损失（L1）
 - 车辆三维尺寸损失（L1）
-- 由基准点反算至世界坐标，根据预测所得长宽高推算8点二维图像坐标，再计算8点二维图像坐标损失（L1）
+- 由基准点反算至世界坐标，根据预测所得长宽高+标定参数推算8点二维图像坐标，再计算8点二维图像坐标损失（L1）
+- 3d iou损失，将预测8点构成的3d box通过相机标定参数和预测的长宽高反算至世界坐标中，与真实标注的世界坐标中的3d box求3d iou确定loss，参考ciou loss的论文实现：Distance-IoU Loss: Faster and Better Learning for Bounding Box Regression [[arxiv]](http://arxiv.org/abs/1911.0828)

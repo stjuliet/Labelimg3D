@@ -5,8 +5,8 @@
 
 /model_us_yolov4/
 /model_yolov4/
-/pictures/
 /real_scene/
+/resource/
 
 /session0_center_data/
 /session0_right_data/
