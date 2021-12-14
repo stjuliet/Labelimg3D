@@ -483,10 +483,16 @@
     <property name="title">
      <string>Menu</string>
     </property>
-    <addaction name="separator"/>
-    <addaction name="actionOpen_Folder_2"/>
+    <addaction name="action_open_folder"/>
+   </widget>
+   <widget class="QMenu" name="menuRevise_Mode">
+    <property name="title">
+     <string>Revise Mode</string>
+    </property>
+    <addaction name="actionkeypoint_only"/>
    </widget>
    <addaction name="menuMenu"/>
+   <addaction name="menuRevise_Mode"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_Folder">
@@ -494,30 +500,25 @@
     <string>Open Folder...</string>
    </property>
   </action>
-  <action name="actionOpen_Folder_2">
+  <action name="action_open_folder">
    <property name="text">
     <string>Open Folder...</string>
+   </property>
+  </action>
+  <action name="actionkeypoint_only">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>keypoint only</string>
    </property>
   </action>
  </widget>
  <resources/>
  <connections>
-  <connection>
-   <sender>menubar</sender>
-   <signal>triggered(QAction*)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>choose_img_folder()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>19</x>
-     <y>14</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>134</x>
-     <y>34</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>pushButton_SaveAnnotations</sender>
    <signal>clicked()</signal>
@@ -755,6 +756,22 @@
     <hint type="destinationlabel">
      <x>1019</x>
      <y>427</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>action_open_folder</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>choose_img_folder()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>695</x>
+     <y>406</y>
     </hint>
    </hints>
   </connection>

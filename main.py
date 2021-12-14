@@ -5,7 +5,7 @@ import sys
 from interface import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import *
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from YoloDetect import YoloDetect
 from copy import deepcopy
@@ -17,6 +17,57 @@ from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, save3dbbox_result, 
 # 初始化读取车辆类型字典
 dict_map_order_str = {'car': 1, 'truck': 2, 'bus': 3}
 classes = ["Car", "Truck", "Bus"]
+
+
+# 重写Qlabel类，用于标注关键点坐标
+class MyLabel(QLabel):
+    def __init__(self, parent=None):
+        super(MyLabel, self).__init__((parent))
+        self.points = []
+        self.paint_flag = False
+        self.scaleX = 0.0
+        self.scaleY = 0.0
+        # QPoint, 用于显示
+        self.q_points = []
+
+    # 鼠标点击事件
+    def mousePressEvent(self, event):
+        if self.scaleX != 0 and self.scaleY != 0:
+            if event.button() == Qt.LeftButton:
+                self.paint_flag = True
+                pt = event.pos()  # QPoint
+                pt_x = event.x() * self.scaleX
+                pt_y = event.y() * self.scaleY
+                self.points.append([pt_x, pt_y])
+                self.q_points.append(pt)
+            elif event.button() == Qt.RightButton and self.points:  # 当self.points中有值，且点击右键时，删除上一个标注信息
+                self.points.pop(-1)
+                self.q_points.pop(-1)
+            if self.paint_flag:
+                self.update()
+
+    # 鼠标释放事件
+    def mouseReleaseEvent(self, event):
+        pass
+
+    # 鼠标移动事件
+    def mouseMoveEvent(self, event):
+        pass
+
+    # 绘制事件
+    def paintEvent(self, event):
+        super().paintEvent(event)  # 先调用父类的paintEvent为了显示'背景'!!!
+        if self.scaleX != 0 and self.scaleY != 0:
+            painter_brush = QPainter()
+            painter_brush.begin(self)
+            painter_brush.setPen(QPen(Qt.green, 4))
+            if self.paint_flag:
+                for i in range(len(self.q_points)):
+                    painter_brush.drawPoints(self.q_points[i])
+                    point_coordination = "(" + str(int(self.points[i][0])) + "," + str(int(self.points[i][1])) + ")"
+                    painter_brush.drawText(self.q_points[i], point_coordination)
+            else:
+                return
 
 
 # 重写主窗体类
@@ -38,8 +89,10 @@ class Main(QMainWindow, Ui_MainWindow):
         self.l = self.doubleSpinBox_Bbox3D_Length.value() * 1000.0
         self.w = self.doubleSpinBox_Bbox3D_Width.value() * 1000.0
         self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
+        self.key_point_nums = 4
 
         self.veh_box = []
+        self.key_points = []
 
         self.all_veh_2dbbox = []  # 保存标注信息
         self.all_3dbbox_2dvertex = []
@@ -50,6 +103,11 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_3dbbox_3dvertex =[]
         self.all_vehicle_location = []
         self.all_veh_conf = []
+        self.all_key_points = []
+
+        # 加载重定义的Mylabel
+        self.label_ImageDisplay = MyLabel(self.groupBox_ImageDisplay)
+        self.label_ImageDisplay.setGeometry(QtCore.QRect(10, 20, 971, 701))
 
         # 设置在label中自适应显示图片
         self.label_ImageDisplay.setScaledContents(True)
@@ -83,6 +141,9 @@ class Main(QMainWindow, Ui_MainWindow):
         '''计算并绘制3d bbox'''
         self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h)
         drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
+        if self.label_ImageDisplay.points:
+            self.key_points = np.array(self.label_ImageDisplay.points).flatten().tolist()  # 每次绘制3d box时，保存拉平的关键点对
+            self.paint_key_points(drawbox_img, self.key_points)
         return drawbox_img
 
     def paint(self, imgcopy, list_vertex, centroid_2d):
@@ -113,6 +174,14 @@ class Main(QMainWindow, Ui_MainWindow):
 
         self.show_img_in_label(self.label_ImageDisplay, imgcopy)
 
+        return imgcopy
+
+    def paint_key_points(self, imgcopy, list_key_point):
+        for i in range(len(list_key_point)//2):
+            pt = (int(list_key_point[2*i]), int(list_key_point[2*i+1]))
+            cv.circle(imgcopy, pt, 5, (0, 255, 0), 3)
+
+        self.show_img_in_label(self.label_ImageDisplay, imgcopy)
         return imgcopy
 
     def image_label_display(self, object):
@@ -169,6 +238,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_3dbbox_3dvertex.clear()
         self.all_vehicle_location.clear()
         self.all_veh_conf.clear()
+        self.all_key_points.clear()
         self.select_file = self.list_file_path[QModelIndex.row()]
         self.spinBox_CurAnnNum.setValue(-1)
 
@@ -180,6 +250,10 @@ class Main(QMainWindow, Ui_MainWindow):
 
             # self.frame = cv.imread(self.select_file)  # 读取选中行
             self.frame_copy = deepcopy(self.frame)
+
+            # 每次读入图像，都计算label_display的scale_x, scale_y
+            self.label_ImageDisplay.scaleX = float(self.frame.shape[1]) / float(self.label_ImageDisplay.width())
+            self.label_ImageDisplay.scaleY = float(self.frame.shape[0]) / float(self.label_ImageDisplay.height())
         else:
             return
 
@@ -196,6 +270,9 @@ class Main(QMainWindow, Ui_MainWindow):
             # 读入标注文件, 并绘制于原图
             tree = ET.parse(self.select_file_xml)
             root = tree.getroot()
+            # box_nums
+            box_nums = len(tree.findall("object"))
+            tp_veh_key_point_data = np.zeros((box_nums, 2*self.key_point_nums))
             # box
             for idx, obj in enumerate(root.iter('object')):
                 # 1、二维框[left, top, width, height]
@@ -251,12 +328,23 @@ class Main(QMainWindow, Ui_MainWindow):
                 # veh_centre_data -> 元组
                 tp_veh_centre_data = (int(veh_centre_data[0]), int(veh_centre_data[1]))
 
+                # 8、key_point
+                if obj.find('key_points') is not None:
+                    veh_key_point_data = obj.find('key_points').text.split()
+                    veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
+                    tp_veh_key_point_data[idx] = veh_key_point_data
+
+                    # 绘制2d keypoint
+                    if np.array(veh_key_point_data).all():
+                        self.frame = self.paint_key_points(self.frame, veh_key_point_data)
+
                 # 绘制2D box
                 left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[0]) + int(bbox2d_data[2]), int(bbox2d_data[1]) + int(bbox2d_data[3])
                 cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
-                label = '%s:%.2f' % (veh_type_data.lower(), 1.00)
+                label = '%s:%.2f-%s' % (veh_type_data.lower(), 1.00, str(idx + 1))
 
                 # Display the label at the top of the bounding box
+                # display the idx of each object
                 labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
                 top = max(top, labelSize[1])
                 cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
@@ -267,6 +355,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 # 绘制3D box, 并显示至label
                 drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
 
+            self.all_key_points = tp_veh_key_point_data.tolist()
             self.show_img_in_label(self.label_ImageDisplay, drawbox_img)
 
         else:
@@ -297,7 +386,7 @@ class Main(QMainWindow, Ui_MainWindow):
 
                     self.drawbox_img = self.draw_3dbox(self.frame)
 
-            else: # 重新标注
+            else:  # 重新标注
                 try:
                     if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
                         self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # 最大只能设置到目标数
@@ -315,13 +404,15 @@ class Main(QMainWindow, Ui_MainWindow):
                         elif self.perspective == 'right':  # right
                             self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
                             self.veh_base_point = self.base_point
-                        self.drawbox_img = self.draw_3dbox(self.frame)
-
+                        if self.label_ImageDisplay.points:
+                            self.drawbox_img = self.draw_3dbox(self.frame)
+                        else:
+                            QMessageBox.information(self, "Information", "Please make key points annotation first! ",
+                                                    QMessageBox.Yes | QMessageBox.No)
+                            self.spinBox_CurAnnNum.setValue(-1)
                 except:
                     QMessageBox.information(self, "Information", "Please choose one vehicle! ",
                                             QMessageBox.Yes | QMessageBox.No)
-
-
 
     def radio_bp_left(self):
         '''选择3d bbox 包围基准点方向: 左下角'''
@@ -378,15 +469,18 @@ class Main(QMainWindow, Ui_MainWindow):
         if self.frame is not None:
             if os.path.exists(self.select_file_xml):
                 self.frame = self.drawbox_img
-
-                self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
-                self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
-                self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
-                self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
-                self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
-                self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
-                self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
-
+                if self.actionkeypoint_only.isChecked():
+                    self.all_key_points[self.spinBox_CurAnnNum.value()] = self.key_points
+                    self.label_ImageDisplay.points.clear()
+                    self.label_ImageDisplay.q_points.clear()
+                else:
+                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
+                    self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
+                    self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
+                    self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
+                    self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
+                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
+                    self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
             else:
                 # 如果没有清空过，则只要有信息、并且信息不和上一次的重复即可添加
                 # 如果清空过，并且all信息列表为空，则不保存
@@ -405,6 +499,9 @@ class Main(QMainWindow, Ui_MainWindow):
                         self.all_3dbbox_3dvertex.append(self.list_3dbbox_3dvertex)
                         self.all_vehicle_location.append(self.centroid_2d)
                         self.all_veh_conf.append(self.veh_conf)
+                        self.all_key_points.append(self.key_points)
+                        self.label_ImageDisplay.points.clear()
+                        self.label_ImageDisplay.q_points.clear()
                         self.pushButton_ClearAnnotations.setEnabled(True)
                 else:
                     return
@@ -417,7 +514,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
                 xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"  # xml与图像同名
                 save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
-                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location)
+                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points)
             else:
                 return
 
@@ -444,6 +541,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.all_3dbbox_3dvertex.pop(-1)
                 self.all_vehicle_location.pop(-1)
                 self.all_veh_conf.pop(-1)  # fix
+                self.all_key_points.pop(-1)
                 for i in range(len(self.list_box)):
                     # 绘制2D box
                     left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
