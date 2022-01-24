@@ -8,3 +8,5 @@ PyQt implementation of 3D bbox annotation tool
 
 ✌ EXE：[Releases]()
 
+### Paper
+CenterLoc3D
