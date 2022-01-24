@@ -1,13 +1,15 @@
 .idea
 /__pycache__/
+
 /build/
 /dist/
 
 /model_us_yolov4/
 /model_yolov4/
-/real_scene/
 /resource/
 
+/real_scene_cam0/
+/real_scene_cam1/
 /session0_center_data/
 /session0_right_data/
 /session6_right_data/
