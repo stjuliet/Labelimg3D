@@ -226,7 +226,7 @@ class Ui_MainWindow(object):
         self.action_open_folder.setObjectName("action_open_folder")
         self.actionkeypoint_only = QtWidgets.QAction(MainWindow)
         self.actionkeypoint_only.setCheckable(True)
-        self.actionkeypoint_only.setChecked(True)
+        self.actionkeypoint_only.setChecked(False)
         self.actionkeypoint_only.setObjectName("actionkeypoint_only")
         self.menuMenu.addAction(self.action_open_folder)
         self.menuRevise_Mode.addAction(self.actionkeypoint_only)

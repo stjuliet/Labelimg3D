@@ -1,9 +1,10 @@
-# 3d-bbox-annotation-tool
+# Labelimg3D
+## 3D-BBox-Annotation-Tool
 
-## 基于PyQt实现的三维目标检测标注工具✌✌
+PyQt implementation of 3D bbox annotation tool
 
-### 使用说明
-✌ 标注工具说明书：3d_bbox_annotation_instruction.md
+### Get Started
+✌ Instruction: [3d_bbox_annotation_instruction.md](3d_bbox_annotation_instruction.md)
 
-✌ 可执行文件：dist/main.exe
+✌ EXE：[Releases]()
 

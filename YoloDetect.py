@@ -1,29 +1,25 @@
 import numpy as np
 import cv2 as cv
 import time
-# 使用pyqt多线程、信号槽机制实现目标检测，防止界面卡死
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
 
-'''
-读入目标检测类型文件，返回类别数组
-'''
-
-
-
 def read_class(file):
+    """
+    get cls list
+    :param file:
+    :return:
+    """
     with open(file, 'rt') as f:
         classes = f.read().rstrip('\n').split('\n')
     return classes
 
 
-'''
-目标检测类(继承多线程)
-'''
-
-
 class YoloDetect(QThread):
+    """
+    object detect
+    """
     send_detect_result = pyqtSignal(object)
 
     def __init__(self, class_path, modelConfiguration, modelWeights):
@@ -37,19 +33,15 @@ class YoloDetect(QThread):
         self.net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)  # CUDA: DNN_BACKEND_CUDA
         self.net.setPreferableTarget(cv.dnn.DNN_TARGET_CPU)       # CUDA: DNN_TARGET_CUDA
 
-
     def Init(self, frame):
         self.frame = frame
 
-
-    # 获得输出层名
     def getOutputsNames(self, net):
         # Get the names of all the layers in the network
         layersNames = net.getLayerNames()
         # Get the names of the output layers, i.e. the layers with unconnected outputs
         return [layersNames[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
-    # 绘制bbox
     def drawPred(self, frame, idx, classes, classId, conf, left, top, right, bottom):
         # Draw a bounding box.
         cv.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 3)
@@ -65,26 +57,25 @@ class YoloDetect(QThread):
                          (255, 255, 255), cv.FILLED)
         cv.putText(frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
 
-    # 后处理
     def postprocess(self, frame, classes, outs):
-        '''
+        """
         Remove the bounding boxes with low confidence using non-maximum suppression
         :param frame:
         :param classes:
         :return: outs:[507*85 =(13*13*3)*(5+80),
                  2028*85=(26*26*3)*(5+80),
                  8112*85=(52*52*3)*(5+80)]
-        outs中每一行是一个预测值：[x,y,w,h,confs,class_probs_0,class_probs_1,..,class_probs_78,class_probs_79]
+                 [x,y,w,h,confs,class_probs_0,class_probs_1,..,class_probs_78,class_probs_79]
         :return:
-        '''
+        """
         frameHeight = frame.shape[0]
         frameWidth = frame.shape[1]
         # Scan through all the bounding boxes output from the network and keep only the
         # ones with high confidence scores. Assign the box's class label as the class with the highest score.
         classIds = []
         confidences = []
-        boxes = []    # 保存对应二维框
-        list_type = []  # 保存类型
+        boxes = []    # bbox 2d
+        list_type = []  # cls name
         nms_boxes = []
         nms_list_type = []
         nms_list_conf = []
@@ -125,14 +116,14 @@ class YoloDetect(QThread):
             self.drawPred(frame, cnt, classes, classIds[i], confidences[i], left, top, left + width, top + height)
         return nms_boxes, nms_list_type, nms_list_conf
 
-    # 前向传播
     def cv_dnn_forward(self, frame):
-        '''
+        """
+        forward
         :param frame:
         :return: outs:[507*85 =13*13*3*(5+80),
                        2028*85=26*26*3*(5+80),
                        8112*85=52*52*3*(5+80)]
-        '''
+        """
         # Create a 4D blob from a frame.
         blob = cv.dnn.blobFromImage(frame, 1 / 255, (self.net_input_width, self.net_input_height), [0, 0, 0], 1,
                                     crop=False)
@@ -145,8 +136,12 @@ class YoloDetect(QThread):
         # runtime, _ = self.net.getPerfProfile()
         return outs
 
-    # 预测总函数
     def yolov4_predict(self, frame):
+        """
+        predict func
+        :param frame:
+        :return:
+        """
         t1 = time.time()
         outs = self.cv_dnn_forward(frame)
         # Remove the bounding boxes with low confidence
@@ -159,17 +154,13 @@ class YoloDetect(QThread):
         # cv.putText(frame, fps, (0, 40), cv.FONT_HERSHEY_COMPLEX, 1.5, (0, 0, 255), 2)
         return frame, list_box, list_type, list_conf
 
-
-    # 多线程start调用函数
     def run(self):
+        """ thread default func """
         detect_frame, list_box, list_type, list_conf = self.yolov4_predict(self.frame)
-        # 耗时转换图像操作放在run函数中运行，传出pixmap信号，可直接显示
-        detect_frame = cv.cvtColor(detect_frame, cv.COLOR_BGR2RGB)
+        detect_frame = cv.cvtColor(detect_frame, cv.COLOR_BGR2RGB)  # BGR -> RGB
         qimage = QImage(detect_frame.data, detect_frame.shape[1], detect_frame.shape[0], detect_frame.shape[1] * 3, QImage.Format_RGB888)
         detect_pixmap = QPixmap.fromImage(qimage)
         if detect_frame is not None:
-            self.send_detect_result.emit([detect_pixmap, list_box, list_type, list_conf])  # 检测完成传送信号，触发槽函数接收并显示检测结果
+            self.send_detect_result.emit([detect_pixmap, list_box, list_type, list_conf])  # emit
         else:
             return
-
-
