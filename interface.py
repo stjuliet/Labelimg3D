@@ -254,7 +254,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Labelimg-3D"))
         self.groupBox_ImageDisplay.setTitle(_translate("MainWindow", "Image Display"))
         self.groupBox_FileList.setTitle(_translate("MainWindow", "File List"))
         self.groupBox_AnnOption.setTitle(_translate("MainWindow", "Annotation Options"))
@@ -279,7 +279,7 @@ class Ui_MainWindow(object):
         self.pushButton_SaveAnnotations.setText(_translate("MainWindow", "Save All"))
         self.pushButton_SaveAnnotations.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.menuMenu.setTitle(_translate("MainWindow", "Menu"))
-        self.menuRevise_Mode.setTitle(_translate("MainWindow", "Revise Mode"))
+        self.menuRevise_Mode.setTitle(_translate("MainWindow", "Mode"))
         self.actionOpen_Folder.setText(_translate("MainWindow", "Open Folder..."))
         self.action_open_folder.setText(_translate("MainWindow", "Open Folder..."))
-        self.actionkeypoint_only.setText(_translate("MainWindow", "keypoint only"))
+        self.actionkeypoint_only.setText(_translate("MainWindow", "keypoint"))

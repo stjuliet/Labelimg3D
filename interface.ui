@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Labelimg-3D</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QGroupBox" name="groupBox_ImageDisplay">
@@ -487,7 +487,7 @@
    </widget>
    <widget class="QMenu" name="menuRevise_Mode">
     <property name="title">
-     <string>Revise Mode</string>
+     <string>Mode</string>
     </property>
     <addaction name="actionkeypoint_only"/>
    </widget>
@@ -513,7 +513,7 @@
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>keypoint only</string>
+    <string>keypoint</string>
    </property>
   </action>
  </widget>

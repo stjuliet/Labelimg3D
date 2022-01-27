@@ -205,9 +205,9 @@ class Main(QMainWindow, Ui_MainWindow):
             all_file_names = os.listdir(self.str_folder_path)  # get all file names in the directory
             for single_filename in all_file_names:
                 if single_filename == 'calib':
-                    self.calib_file_path = os.path.join(self.str_folder_path, "calib", os.listdir(os.path.join(self.str_folder_path, "calib"))[0])
+                    self.calib_file_path = self.str_folder_path + "/calib/" + os.listdir(os.path.join(self.str_folder_path, "calib"))[0]
                 elif os.path.splitext(single_filename)[1] == ".bmp" or ".jpg" or "jpeg" or ".png":
-                    self.list_file_path.append(os.path.join(self.str_folder_path, single_filename))  # get all suitable files
+                    self.list_file_path.append(self.str_folder_path + "/" +single_filename)  # get all suitable files
             # show in listview
             listview_model = QStringListModel()
             listview_model.setStringList(self.list_file_path)
