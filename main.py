@@ -316,9 +316,11 @@ class Main(QMainWindow, Ui_MainWindow):
 
                 # 8、key_point
                 if obj.find('key_points') is not None:
-                    veh_key_point_data = obj.find('key_points').text.split()
-                    veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
-                    tp_veh_key_point_data[idx] = veh_key_point_data
+                    veh_key_point_data = obj.find('key_points')
+                    if veh_key_point_data:
+                        veh_key_point_data = veh_key_point_data.text.split()
+                        veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
+                        tp_veh_key_point_data[idx] = veh_key_point_data
 
                     # show 2d keypoint
                     if np.array(veh_key_point_data).all():
