@@ -26,7 +26,7 @@ class MyLabel(QLabel):
         self.paint_flag = False
         self.scaleX = 0.0
         self.scaleY = 0.0
-        self.q_points = [] # QPoint for show
+        self.q_points = []  # QPoint for show
 
     def mousePressEvent(self, event):
         if self.scaleX != 0 and self.scaleY != 0:
@@ -231,7 +231,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.select_file = self.list_file_path[QModelIndex.row()]
         self.spinBox_CurAnnNum.setValue(-1)
 
-        if self.select_file.split('.')[-1] == "jpg" or "png":
+        if self.select_file.split('.')[-1] == "jpg" or self.select_file.split('.')[-1] == "png":
             # support chinese path
             buf_data = np.fromfile(self.select_file, dtype=np.uint8)
             self.frame = cv.imdecode(buf_data, 1)  # color
@@ -507,7 +507,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
                 xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"
                 save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
-                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points)
+                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
             else:
                 return
 

@@ -199,7 +199,7 @@ def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h):
     return list_3dbbox_2dvertex, list_3dbbox_3dvertex, centroid_2d
 
 
-def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points):
+def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points, keypoint_flag):
     # create dom
     doc = Document()
 
@@ -290,7 +290,7 @@ def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_
         loc.appendChild(loc_text)
         object.appendChild(loc)
 
-        if i <= len(key_points) - 1:
+        if i <= len(key_points) - 1 and keypoint_flag:
             key_point = doc.createElement('key_points')
             temp_key_point_str = " ".join(str(i) for i in key_points[i])
             key_point_text = doc.createTextNode(temp_key_point_str)
