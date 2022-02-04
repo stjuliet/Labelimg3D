@@ -3,11 +3,11 @@ import os
 import xml.etree.ElementTree as ET
 
 save_dir = "real_scene_cam0/"
-start_index = 134
-end_index = 400
+start_index = 1296
+end_index = 2201
 
 for i in range(start_index, end_index):
-    base_xml_file_name = "bg_%06d" % (i-1)
+    base_xml_file_name = "bg_%06d" % 900
     xml_file_name = "bg_%06d" % i
     base_xml_file_path = os.path.join(save_dir, base_xml_file_name + ".xml")
     xml_file_path = os.path.join(save_dir, xml_file_name + ".xml")
