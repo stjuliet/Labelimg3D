@@ -228,9 +228,11 @@ class Main(QMainWindow, Ui_MainWindow):
             veh_w = float(dialog.doubleSpinBox_w.text())
             veh_h = float(dialog.doubleSpinBox_h.text())
             line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
+            current_liststr = self.listview_model_vehsize.stringList()
             # put into list view
-            if line not in self.listview_model_vehsize.stringList():
-                self.listview_model_vehsize.setStringList([line])
+            if line not in current_liststr:
+                current_liststr.append(line)
+                self.listview_model_vehsize.setStringList(current_liststr)
                 self.listView_VehSize.setModel(self.listview_model_vehsize)
             else:
                 QMessageBox.information(self, "Information", "Repeated element! ",
@@ -388,7 +390,11 @@ class Main(QMainWindow, Ui_MainWindow):
                 drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
 
             # put into list view
-            self.listview_model_vehsize.setStringList(set(vehsize_lines))
+            current_liststr = self.listview_model_vehsize.stringList()
+            for v in set(vehsize_lines):
+                if v not in current_liststr:
+                    current_liststr += [v]
+            self.listview_model_vehsize.setStringList(current_liststr)
             self.listView_VehSize.setModel(self.listview_model_vehsize)
 
             self.all_key_points = tp_veh_key_point_data.tolist()
