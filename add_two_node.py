@@ -4,10 +4,10 @@ import xml.etree.ElementTree as ET
 # 901--903
 # add two vehicle annotation
 
-save_dir = "real_scene_cam1/"
-start_index = 3570
-end_index = 3663
-base_xml_file_name = "bg_%06d" % 0  # base
+save_dir = "real_scene_cam0/"
+start_index = 7255
+end_index = 12705
+base_xml_file_name = "bg_%06d" % 900  # base
 
 base_xml_file_path = os.path.join(save_dir, base_xml_file_name + ".xml")
 base_xml_tree = ET.parse(base_xml_file_path)

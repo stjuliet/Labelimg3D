@@ -62,9 +62,9 @@
     <property name="geometry">
      <rect>
       <x>1030</x>
-      <y>440</y>
+      <y>560</y>
       <width>341</width>
-      <height>321</height>
+      <height>201</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -82,7 +82,7 @@
        <x>10</x>
        <y>20</y>
        <width>321</width>
-       <height>291</height>
+       <height>171</height>
       </rect>
      </property>
      <property name="editTriggers">
@@ -96,7 +96,7 @@
       <x>1030</x>
       <y>30</y>
       <width>341</width>
-      <height>401</height>
+      <height>391</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -469,6 +469,32 @@
      </layout>
     </widget>
    </widget>
+   <widget class="QGroupBox" name="groupBox_VehSize">
+    <property name="geometry">
+     <rect>
+      <x>1030</x>
+      <y>430</y>
+      <width>341</width>
+      <height>131</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Vehicle Size</string>
+    </property>
+    <widget class="QListView" name="listView_VehSize">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>321</width>
+       <height>101</height>
+      </rect>
+     </property>
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+    </widget>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -491,8 +517,15 @@
     </property>
     <addaction name="actionkeypoint_only"/>
    </widget>
+   <widget class="QMenu" name="menuConfig">
+    <property name="title">
+     <string>Config</string>
+    </property>
+    <addaction name="actionvehicle_size"/>
+   </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuRevise_Mode"/>
+   <addaction name="menuConfig"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_Folder">
@@ -514,6 +547,17 @@
    </property>
    <property name="text">
     <string>keypoint</string>
+   </property>
+  </action>
+  <action name="actionvehicle_size">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>vehicle_size</string>
    </property>
   </action>
  </widget>
@@ -775,6 +819,54 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionvehicle_size</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>config_vehicle_size()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>695</x>
+     <y>406</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>listView_VehSize</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>transfer_anno_vehicle_size()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1337</x>
+     <y>492</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1385</x>
+     <y>489</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>listView_VehSize</sender>
+   <signal>doubleClicked(QModelIndex)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>remove_listview_vehsize_item()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1340</x>
+     <y>529</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1385</x>
+     <y>528</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <signal>triggered()</signal>
@@ -798,5 +890,8 @@
   <slot>save_temp_annotation_results()</slot>
   <slot>clear_single_annotation()</slot>
   <slot>edit()</slot>
+  <slot>config_vehicle_size()</slot>
+  <slot>remove_listview_vehsize_item()</slot>
+  <slot>transfer_anno_vehicle_size()</slot>
  </slots>
 </ui>

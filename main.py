@@ -3,6 +3,7 @@ import numpy as np
 import cv2 as cv
 import sys
 from interface import *
+from dialog_vehicle_size import Ui_Dialog as dialog_vehsize
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -86,6 +87,8 @@ class Main(QMainWindow, Ui_MainWindow):
         self.veh_box = []
         self.key_points = []
 
+        self.listview_model_vehsize = QStringListModel()
+
         self.all_veh_2dbbox = []  # save annotations
         self.all_3dbbox_2dvertex = []
         self.all_vehicle_type = []
@@ -105,7 +108,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # style sheet
 
     def closeEvent(self, event):
-        reply = QMessageBox.information(self, "info", "Are you sure to exit?",
+        reply = QMessageBox.question(self, "info", "Are you sure to exit?",
                                         QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             sys.exit()
@@ -215,9 +218,44 @@ class Main(QMainWindow, Ui_MainWindow):
         except Exception as e:  # if not choose file dir
             return
 
+    def config_vehicle_size(self):
+        """ config vehicle size """
+        q_dialog, dialog = QDialog(), dialog_vehsize()
+        dialog.setupUi(q_dialog)
+        q_dialog.show()
+        if q_dialog.exec() == QDialog.Accepted:
+            veh_l = float(dialog.doubleSpinBox_l.text())
+            veh_w = float(dialog.doubleSpinBox_w.text())
+            veh_h = float(dialog.doubleSpinBox_h.text())
+            line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
+            # put into list view
+            if line not in self.listview_model_vehsize.stringList():
+                self.listview_model_vehsize.setStringList([line])
+                self.listView_VehSize.setModel(self.listview_model_vehsize)
+            else:
+                QMessageBox.information(self, "Information", "Repeated element! ",
+                                        QMessageBox.Yes | QMessageBox.No)
+        else:
+            return
+
+    def transfer_anno_vehicle_size(self, QModelIndex):
+        row = self.listview_model_vehsize.stringList()[QModelIndex.row()]
+        l, w, h = row.split(",")
+        self.doubleSpinBox_Bbox3D_Length.setValue(float(l))
+        self.doubleSpinBox_Bbox3D_Width.setValue(float(w))
+        self.doubleSpinBox_Bbox3D_Height.setValue(float(h))
+
+    def remove_listview_vehsize_item(self, QModelIndex):
+        button = QMessageBox.question(self, "Question", "deleted? ",
+                                      QMessageBox.Ok, QMessageBox.No)
+        if button == QMessageBox.Ok:
+            if self.listView_VehSize.selectedIndexes():
+                self.listview_model_vehsize.removeRow(QModelIndex.row())
+        else:
+            return
+
     def listview_doubleclick_slot(self, QModelIndex):
         """ double-click to do object detection, and load calib information"""
-
         self.all_veh_2dbbox.clear()
         self.all_3dbbox_2dvertex.clear()
         self.all_vehicle_type.clear()
@@ -253,6 +291,7 @@ class Main(QMainWindow, Ui_MainWindow):
         # load annotation files
         # if not exists, load img to detection
         self.select_file_xml = self.select_file.split('.')[0] + '.xml'
+        vehsize_lines = []  # for listview
         if os.path.exists(self.select_file_xml):
             tree = ET.parse(self.select_file_xml)
             root = tree.getroot()
@@ -292,6 +331,11 @@ class Main(QMainWindow, Ui_MainWindow):
                 veh_size_data = obj.find('veh_size').text.split()
                 veh_size_data = [float(size) for size in veh_size_data]
                 self.all_vehicle_size.append(veh_size_data)
+                # listview
+                veh_l, veh_w, veh_h = veh_size_data
+                vehsize_line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
+                vehsize_lines.append(vehsize_line)
+
                 # 6、view (left, right)
                 veh_view_data = obj.find('perspective').text
                 self.all_perspective.append(veh_view_data)
@@ -342,6 +386,10 @@ class Main(QMainWindow, Ui_MainWindow):
 
                 # draw 3D box
                 drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
+
+            # put into list view
+            self.listview_model_vehsize.setStringList(set(vehsize_lines))
+            self.listView_VehSize.setModel(self.listview_model_vehsize)
 
             self.all_key_points = tp_veh_key_point_data.tolist()
             self.show_img_in_label(self.label_ImageDisplay, drawbox_img)

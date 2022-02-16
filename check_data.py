@@ -3,9 +3,9 @@ import xml.etree.ElementTree as ET
 
 # cam0:342 322  cam1:311 105
 
-save_dir = "real_scene_cam1/"
+save_dir = "real_scene_cam0/"
 start_index = 0
-end_index = 3701
+end_index = 15000
 
 for i in range(start_index, end_index):
     xml_file_name = "bg_%06d" % i
@@ -22,3 +22,6 @@ for i in range(start_index, end_index):
                 per_frame_valid_check_count += 1
         if per_frame_valid_check_count != 1:
             print("unvalid sample: ", i)
+
+        if i > 6800:
+            print(xml_file_path)
