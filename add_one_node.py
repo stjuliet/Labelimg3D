@@ -5,9 +5,9 @@ import xml.etree.ElementTree as ET
 # add one vehicle annotation
 
 save_dir = "real_scene_cam0/"
-start_index = 500
-end_index = 691
-base_xml_file_name = "bg_%06d" % end_index  # base
+start_index = 8735
+end_index = 14641
+base_xml_file_name = "bg_%06d" % 900  # base
 
 base_xml_file_path = os.path.join(save_dir, base_xml_file_name + ".xml")
 base_xml_tree = ET.parse(base_xml_file_path)
@@ -39,7 +39,7 @@ def SubElementWithText(parent, tag, text):
 
 
 for idx, obj in enumerate(base_root.iter('object')):
-    if idx == 1:
+    if idx == 0:
         type = obj.find("type").text
         bbox2d = obj.find("bbox2d").text
         vertex2d = obj.find("vertex2d").text
