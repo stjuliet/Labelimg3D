@@ -4,9 +4,10 @@
 /build/
 /dist/
 
+/imgs/old
+
 /model_us_yolov4/
 /model_yolov4/
-/resource/
 
 /real_scene_cam0/
 /real_scene_cam1/
