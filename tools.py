@@ -20,18 +20,24 @@ def ReadCalibParam(calib_xml_path):
     func: read calib parameters
     """
     xml_dir = ET.parse(calib_xml_path)
-    focal = float(xml_dir.find('f').text)
-    fi = float(xml_dir.find('fi').text)
-    theta = float(xml_dir.find('theta').text)
-    cam_height = float(xml_dir.find('h').text)
-    list_vps = xml_dir.find('vanishPoints').text.split()
-    np_list_vps = np.array(list_vps).astype(np.float32)
-    rd_vpx = int(np_list_vps[0])
-    rd_vpy = int(np_list_vps[1])
-    prd_vpx = int(np_list_vps[2])
-    prd_vpy = int(np_list_vps[3])
-    vpline = CalVPLine(rd_vpx, rd_vpy, prd_vpx, prd_vpy)
-    return focal, fi, theta, cam_height, (rd_vpx, rd_vpy), vpline
+    if xml_dir.find('f'):
+        focal = float(xml_dir.find('f').text)
+        fi = float(xml_dir.find('fi').text)
+        theta = float(xml_dir.find('theta').text)
+        cam_height = float(xml_dir.find('h').text)
+        list_vps = xml_dir.find('vanishPoints').text.split()
+        np_list_vps = np.array(list_vps).astype(np.float32)
+        rd_vpx = int(np_list_vps[0])
+        rd_vpy = int(np_list_vps[1])
+        prd_vpx = int(np_list_vps[2])
+        prd_vpy = int(np_list_vps[3])
+        vpline = CalVPLine(rd_vpx, rd_vpy, prd_vpx, prd_vpy)
+        return focal, fi, theta, cam_height, (rd_vpx, rd_vpy), vpline
+    else:
+        xml_f = cv.FileStorage(calib_xml_path, cv.FileStorage_READ)
+        calib_matrix = np.array(xml_f.getNode("calib_matrix").mat())
+        xml_f.release()
+        return calib_matrix
 
 
 def ParamToMatrix(focal, fi, theta, h, pcx, pcy):
@@ -146,7 +152,7 @@ def dashLine(img, p1, p2, color, thickness, interval):
         cv.line(img, plastBeg, p2, color, thickness)
 
 
-def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h):
+def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h, rot):
     """
     draw 3d box
     :param perspective:
@@ -156,6 +162,7 @@ def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h):
     :param l:
     :param w:
     :param h:
+    :param rot:
     :return:
     """
     veh_world_base_point = RDUVtoXYZ(m_trans, veh_base_point[0], veh_base_point[1], 0)
@@ -189,17 +196,37 @@ def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h):
     p7_3d = (p3_3d[0], p3_3d[1], h)
 
     centroid_2d = RDXYZToUV(m_trans, centroid_3d[0], centroid_3d[1], centroid_3d[2])
-    list_3dbbox_3dvertex = [p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]
+    # list_3dbbox_3dvertex = [p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]
+    np_3dbbox_3dveretx = np.array([p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]).reshape(-1, 3)
+    np_3dbbox_centroid = np.array(centroid_3d).reshape(3,)
+    np_3dbbox_3dveretx_rot = rotate_point(np_3dbbox_3dveretx, np_3dbbox_centroid, rot)
+    list_3dbbox_3dvertex = np_3dbbox_3dveretx_rot.tolist()
+
     list_3dbbox_2dvertex = []
     for i in range(len(list_3dbbox_3dvertex)):
-        if i == 1:
-            list_3dbbox_2dvertex.append((veh_base_point[0], veh_base_point[1]))
-        else:
-            list_3dbbox_2dvertex.append(RDXYZToUV(m_trans, list_3dbbox_3dvertex[i][0], list_3dbbox_3dvertex[i][1], list_3dbbox_3dvertex[i][2]))
+        # if i == 1:
+        #     list_3dbbox_2dvertex.append((veh_base_point[0], veh_base_point[1]))
+        # else:
+        list_3dbbox_2dvertex.append(RDXYZToUV(m_trans, list_3dbbox_3dvertex[i][0], list_3dbbox_3dvertex[i][1], list_3dbbox_3dvertex[i][2]))
     return list_3dbbox_2dvertex, list_3dbbox_3dvertex, centroid_2d
 
 
-def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points, keypoint_flag):
+def rotate_point(point_3d, centroid_3d, degree):
+    """
+    :param: point_3d, [N, 3]
+    :param: centroid_3d, [1, 3]
+    :param: degree, need to be transferred to rad
+    """
+    rot_rad = np.deg2rad(degree - 180)
+    rot_matrix = np.array([np.cos(rot_rad), np.sin(rot_rad), -np.sin(rot_rad), np.cos(rot_rad)]).reshape(2, 2)
+    rot_center = np.expand_dims(centroid_3d, 0).T
+    xy_result = np.matmul(rot_matrix, point_3d[:, :2].T - rot_center[:2]) + rot_center[:2]
+    xy_result = xy_result.T
+    z_result = np.expand_dims(point_3d[:, 2], 1)
+    return np.hstack((xy_result, z_result))
+
+
+def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, veh_rot, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points, keypoint_flag):
     # create dom
     doc = Document()
 
@@ -265,6 +292,12 @@ def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_
         vehiclesize_text = doc.createTextNode(temp_veh_size_str)
         vehiclesize.appendChild(vehiclesize_text)
         object.appendChild(vehiclesize)
+
+        vehiclerot = doc.createElement('veh_rot')
+        temp_veh_rot_str = str(veh_rot[i])
+        vehiclerot_text = doc.createTextNode(temp_veh_rot_str)
+        vehiclerot.appendChild(vehiclerot_text)
+        object.appendChild(vehiclerot)
 
         perspect = doc.createElement('perspective')
         temp_perspect_str = perspective[i]

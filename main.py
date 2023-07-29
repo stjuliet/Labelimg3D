@@ -19,18 +19,34 @@ dict_map_order_str = {'car': 1, 'truck': 2, 'bus': 3}
 classes = ["Car", "Truck", "Bus"]
 
 
-# support key-point annotation
+# support key-point annotation, and wheel scale
 class MyLabel(QLabel):
-    def __init__(self, parent=None):
+    SCALE_MIN_VALUE = 0.1
+    SCALE_MAX_VALUE = 10.0
+
+    def __init__(self, parent=None, window_width=1920, window_height=1080):
         super(MyLabel, self).__init__((parent))
         self.points = []
         self.paint_flag = False
+        self.keypoint_flag = False
+        self.window_width = window_width
+        self.window_height = window_height
+        self.setMouseTracking(True)
+        self.setPixmap(QPixmap("imgs/background.png"))
+        self.m_scaleValue = 1.0
+        self.m_rectPixmap = QRectF(self.pixmap().rect())
+        self.m_drawPoint = QPointF(0.0, 0.0)
+        self.m_pressed = False
+        self.m_lastPos = QPoint()
         self.scaleX = 0.0
         self.scaleY = 0.0
         self.q_points = []  # QPoint for show
 
     def mousePressEvent(self, event):
-        if self.scaleX != 0 and self.scaleY != 0:
+        if event.button() == Qt.LeftButton:
+            self.m_pressed = True
+            self.m_lastPos = event.pos()
+        if self.scaleX != 0 and self.scaleY != 0 and self.keypoint_flag:
             if event.button() == Qt.LeftButton:
                 self.paint_flag = True
                 pt = event.pos()  # QPoint
@@ -44,25 +60,73 @@ class MyLabel(QLabel):
             if self.paint_flag:
                 self.update()
 
-    def mouseReleaseEvent(self, event):
-        pass
+    def mouseDoubleClickEvent(self, event):
+        # 双击屏幕复位
+        self.m_scaleValue = 1.0
+        self.m_drawPoint = QPointF(0.0, 0.0)
+        self.update()
 
     def mouseMoveEvent(self, event):
-        pass
+        if self.m_pressed:
+            delta = event.pos() - self.m_lastPos
+            self.m_lastPos = event.pos()
+            self.m_drawPoint += delta
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.m_pressed = False
+
+    def wheelEvent(self, event):
+        oldScale = self.m_scaleValue
+        if event.angleDelta().y() > 0:
+            self.m_scaleValue *= 1.1
+        else:
+            self.m_scaleValue *= 0.9
+
+        if self.m_scaleValue > self.SCALE_MAX_VALUE:
+            self.m_scaleValue = self.SCALE_MAX_VALUE
+
+        if self.m_scaleValue < self.SCALE_MIN_VALUE:
+            self.m_scaleValue = self.SCALE_MIN_VALUE
+
+        if self.m_rectPixmap.contains(event.pos()):
+            x = self.m_drawPoint.x() - (event.pos().x() - self.m_drawPoint.x()) / self.m_rectPixmap.width() * (
+                        self.width() * (self.m_scaleValue - oldScale))
+            y = self.m_drawPoint.y() - (event.pos().y() - self.m_drawPoint.y()) / self.m_rectPixmap.height() * (
+                        self.height() * (self.m_scaleValue - oldScale))
+            self.m_drawPoint = QPointF(x, y)
+        else:
+            x = self.m_drawPoint.x() - (self.width() * (self.m_scaleValue - oldScale)) / 2
+            y = self.m_drawPoint.y() - (self.height() * (self.m_scaleValue - oldScale)) / 2
+            self.m_drawPoint = QPointF(x, y)
+        self.update()
 
     def paintEvent(self, event):
-        super().paintEvent(event)  # parent for show background
-        if self.scaleX != 0 and self.scaleY != 0:
-            painter_brush = QPainter()
-            painter_brush.begin(self)
-            painter_brush.setPen(QPen(Qt.green, 4))
-            if self.paint_flag:
-                for i in range(len(self.q_points)):
-                    painter_brush.drawPoints(self.q_points[i])
-                    point_coordination = "(" + str(int(self.points[i][0])) + "," + str(int(self.points[i][1])) + ")"
-                    painter_brush.drawText(self.q_points[i], point_coordination)
-            else:
-                return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        painter.scale(self.window_width / self.pixmap().width() * self.m_scaleValue,
+                      self.window_height / self.pixmap().height() * self.m_scaleValue)
+        painter.drawPixmap(self.m_drawPoint, self.pixmap())
+        # super().paintEvent(event)  # parent for show background
+        # if self.scaleX != 0 and self.scaleY != 0:
+        #     painter_brush = QPainter()
+        #     painter_brush.begin(self)
+        #     painter_brush.setPen(QPen(Qt.green, 4))
+        #     if self.paint_flag:
+        #         for i in range(len(self.q_points)):
+        #             painter_brush.drawPoints(self.q_points[i])
+        #             point_coordination = "(" + str(int(self.points[i][0])) + "," + str(int(self.points[i][1])) + ")"
+        #             painter_brush.drawText(self.q_points[i], point_coordination)
+        #     else:
+        #         return
+
+    def resizeEvent(self, event):
+        super(MyLabel, self).resizeEvent(event)
+        self.m_rectPixmap = QRectF(self.pixmap().rect())
+        self.m_rectPixmap.setWidth(self.window_width / self.m_rectPixmap.width() * self.m_scaleValue)
+        self.m_rectPixmap.setHeight(self.window_height / self.m_rectPixmap.height() * self.m_scaleValue)
+        self.m_drawPoint = QPointF(0, 0)
 
 
 class Main(QMainWindow, Ui_MainWindow):
@@ -82,6 +146,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.l = self.doubleSpinBox_Bbox3D_Length.value() * 1000.0
         self.w = self.doubleSpinBox_Bbox3D_Width.value() * 1000.0
         self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
+        self.rot = self.doubleSpinBox_Bbox3D_Rot.value()
         self.key_point_nums = 4
 
         self.veh_box = []
@@ -93,6 +158,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_3dbbox_2dvertex = []
         self.all_vehicle_type = []
         self.all_vehicle_size = []
+        self.all_vehicle_rots = []  # add vehicle rotations
         self.all_perspective = []
         self.all_base_point = []
         self.all_3dbbox_3dvertex =[]
@@ -101,8 +167,10 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_key_points = []
 
         # load redefined Mylabel
-        self.label_ImageDisplay = MyLabel(self.groupBox_ImageDisplay)
-        self.label_ImageDisplay.setGeometry(QtCore.QRect(10, 20, 971, 701))
+        self.label_ImageDisplay = MyLabel(self.groupBox_ImageDisplay,
+                                          self.label_ImageDisplay.width(),
+                                          self.label_ImageDisplay.height())
+        self.label_ImageDisplay.setGeometry(QtCore.QRect(10, 20, 1351, 891))
 
         self.label_ImageDisplay.setScaledContents(True)
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # style sheet
@@ -130,7 +198,7 @@ class Main(QMainWindow, Ui_MainWindow):
 
     def draw_3dbox(self, frame):
         """ calculate and draw 3d box """
-        self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h)
+        self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h, self.rot)
         drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
         if self.label_ImageDisplay.points:
             self.key_points = np.array(self.label_ImageDisplay.points).flatten().tolist()  # 每次绘制3d box时，保存拉平的关键点对
@@ -140,25 +208,25 @@ class Main(QMainWindow, Ui_MainWindow):
     def paint(self, imgcopy, list_vertex, centroid_2d):
         """ paint 3d box """
         # width
-        cv.line(imgcopy, list_vertex[0], (list_vertex[1][0], list_vertex[1][1]), (0, 0, 255), 2)
+        cv.line(imgcopy, list_vertex[0], (list_vertex[1][0], list_vertex[1][1]), (0, 0, 255), 3)
         # cv.line(imgcopy, list_vertex[2], list_vertex[3], (0, 0, 255), 2)
-        dashLine(imgcopy, list_vertex[2], list_vertex[3], (0, 0, 255), 2, 5)
-        cv.line(imgcopy, list_vertex[4], list_vertex[5], (0, 0, 255), 2)
-        cv.line(imgcopy, list_vertex[6], list_vertex[7], (0, 0, 255), 2)
+        dashLine(imgcopy, list_vertex[2], list_vertex[3], (255, 0, 255), 4, 5)
+        cv.line(imgcopy, list_vertex[4], list_vertex[5], (0, 0, 255), 3)
+        cv.line(imgcopy, list_vertex[6], list_vertex[7], (255, 0, 255), 4)
 
         # length
-        cv.line(imgcopy, list_vertex[0], list_vertex[3], (255, 0, 0), 2)
+        cv.line(imgcopy, list_vertex[0], list_vertex[3], (255, 0, 0), 3)
         # cv.line(imgcopy, list_vertex[1], list_vertex[2], (255, 0, 0), 2)
-        dashLine(imgcopy, (list_vertex[1][0], list_vertex[1][1]), list_vertex[2], (255, 0, 0), 2, 5)
-        cv.line(imgcopy, list_vertex[4], list_vertex[7], (255, 0, 0), 2)
-        cv.line(imgcopy, list_vertex[5], list_vertex[6], (255, 0, 0), 2)
+        dashLine(imgcopy, (list_vertex[1][0], list_vertex[1][1]), list_vertex[2], (255, 0, 0), 3, 5)
+        cv.line(imgcopy, list_vertex[4], list_vertex[7], (255, 0, 0), 3)
+        cv.line(imgcopy, list_vertex[5], list_vertex[6], (255, 0, 0), 3)
 
         # height
-        cv.line(imgcopy, list_vertex[0], list_vertex[4], (0, 255, 0), 2)
-        cv.line(imgcopy, (list_vertex[1][0], list_vertex[1][1]), list_vertex[5], (0, 255, 0), 2)
-        cv.line(imgcopy, list_vertex[3], list_vertex[7], (0, 255, 0), 2)
+        cv.line(imgcopy, list_vertex[0], list_vertex[4], (0, 255, 0), 3)
+        cv.line(imgcopy, (list_vertex[1][0], list_vertex[1][1]), list_vertex[5], (0, 255, 0), 3)
+        cv.line(imgcopy, list_vertex[3], list_vertex[7], (0, 255, 0), 3)
         # cv.line(imgcopy, list_vertex[2], list_vertex[6], (0, 255, 0), 2)
-        dashLine(imgcopy, list_vertex[2], list_vertex[6], (0, 255, 0), 2, 5)
+        dashLine(imgcopy, list_vertex[2], list_vertex[6], (0, 255, 0), 3, 5)
 
         # centroid
         cv.circle(imgcopy, centroid_2d, 5, (0, 255, 255), 3)
@@ -210,7 +278,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 if single_filename == 'calib':
                     self.calib_file_path = self.str_folder_path + "/calib/" + os.listdir(os.path.join(self.str_folder_path, "calib"))[0]
                 elif os.path.splitext(single_filename)[1] == ".bmp" or ".jpg" or "jpeg" or ".png":
-                    self.list_file_path.append(self.str_folder_path + "/" +single_filename)  # get all suitable files
+                    self.list_file_path.append(self.str_folder_path + "/" + single_filename)  # get all suitable files
             # show in listview
             listview_model = QStringListModel()
             listview_model.setStringList(self.list_file_path)
@@ -262,6 +330,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_3dbbox_2dvertex.clear()
         self.all_vehicle_type.clear()
         self.all_vehicle_size.clear()
+        self.all_vehicle_rots.clear()
         self.all_perspective.clear()
         self.all_base_point.clear()
         self.all_3dbbox_3dvertex.clear()
@@ -284,10 +353,15 @@ class Main(QMainWindow, Ui_MainWindow):
             return
 
         # load calib parameters
-        self.focal, self.fi, self.theta, self.cam_height, self.turple_vp, self.vpline = \
-            ReadCalibParam(self.calib_file_path)
-        # self.theta = - self.theta
-        self.m_trans = ParamToMatrix(self.focal, self.fi, self.theta, self.cam_height, self.frame.shape[1]/2, self.frame.shape[0]/2)
+        if self.select_file.split("/")[-1].startswith("coop_") or self.select_file.split("/")[-1].startswith("single_"):
+            self.calib_file_path = self.str_folder_path + "/calib/" + self.select_file.split("/")[-1][:-4] + "_calib.xml"
+            self.m_trans = ReadCalibParam(self.calib_file_path)
+            self.turple_vp, self.vpline = (500, 500), (1, 500, 500)
+        else:
+            self.focal, self.fi, self.theta, self.cam_height, self.turple_vp, self.vpline = \
+                ReadCalibParam(self.calib_file_path)
+            # self.theta = - self.theta
+            self.m_trans = ParamToMatrix(self.focal, self.fi, self.theta, self.cam_height, self.frame.shape[1]/2, self.frame.shape[0]/2)
         self.veh_turple_vp = self.turple_vp
 
         # load annotation files
@@ -301,93 +375,107 @@ class Main(QMainWindow, Ui_MainWindow):
             box_nums = len(tree.findall("object"))
             tp_veh_key_point_data = np.zeros((box_nums, 2*self.key_point_nums))
             # box
-            for idx, obj in enumerate(root.iter('object')):
-                # 1、2d box [left, top, width, height]
-                bbox2d_data = obj.find('bbox2d').text.split()
-                bbox2d_data = [int(box) for box in bbox2d_data]
-                self.all_veh_2dbbox.append(bbox2d_data)
+            idx = 0
+            for id, obj in enumerate(root.iter('object')):
                 # 2、vehicle type (0，1，2)
                 veh_type_data = obj.find('type').text
                 if veh_type_data not in classes:
                     continue
-                veh_cls_id = classes.index(veh_type_data)
-                self.all_vehicle_type.append(veh_type_data)
-                # 3、centroid 2d (int)
-                veh_centre_data = obj.find('veh_loc_2d').text.split()
-                veh_centre_data = [int(loc) for loc in veh_centre_data]
-                self.all_vehicle_location.append(veh_centre_data)
-                # 4、vertex 2d (int)
-                veh_vertex_data = []  # for each box (8 vertex)
-                box_2dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex2d').text)
-                for x in box_2dvertex:
-                    veh_vertex_data += [int(item) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
-                self.all_3dbbox_2dvertex.append(veh_vertex_data)
-                # vertex 3d (float)
-                veh_3dvertex_data = []  # for each box (8 vertex)
-                box_3dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex3d').text)
-                for x in box_3dvertex:
-                    veh_3dvertex_data += [float(item) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
-                self.all_3dbbox_3dvertex.append(veh_3dvertex_data)
+                else:
+                    # 1、2d box [left, top, width, height]
+                    bbox2d_data = obj.find('bbox2d').text.split()
+                    bbox2d_data = [int(float(box)) for box in bbox2d_data]
+                    self.all_veh_2dbbox.append(bbox2d_data)
 
-                # 5、vehicle size (float, m)
-                veh_size_data = obj.find('veh_size').text.split()
-                veh_size_data = [float(size) for size in veh_size_data]
-                self.all_vehicle_size.append(veh_size_data)
-                # listview
-                veh_l, veh_w, veh_h = veh_size_data
-                vehsize_line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
-                vehsize_lines.append(vehsize_line)
+                    veh_cls_id = classes.index(veh_type_data)
+                    self.all_vehicle_type.append(veh_type_data)
+                    # 3、centroid 2d (int)
+                    veh_centre_data = obj.find('veh_loc_2d').text.split()
+                    veh_centre_data = [int(float(loc)) for loc in veh_centre_data]
+                    self.all_vehicle_location.append(veh_centre_data)
+                    # 4、vertex 2d (int)
+                    veh_vertex_data = []  # for each box (8 vertex)
+                    box_2dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex2d').text)
+                    for x in box_2dvertex:
+                        veh_vertex_data += [int(float(item)) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
+                    self.all_3dbbox_2dvertex.append(veh_vertex_data)
+                    # vertex 3d (float)
+                    veh_3dvertex_data = []  # for each box (8 vertex)
+                    box_3dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex3d').text)
+                    for x in box_3dvertex:
+                        veh_3dvertex_data += [float(item) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
+                    self.all_3dbbox_3dvertex.append(veh_3dvertex_data)
 
-                # 6、view (left, right)
-                veh_view_data = obj.find('perspective').text
-                self.all_perspective.append(veh_view_data)
-                # 7、vehicle base point (int)
-                veh_base_point_data = obj.find('base_point').text.split()
-                veh_base_point_data = [int(base_point) for base_point in veh_base_point_data]
-                self.all_base_point.append(veh_base_point_data)
+                    # 5、vehicle size (float, m)
+                    veh_size_data = obj.find('veh_size').text.split()
+                    veh_size_data = [float(size) for size in veh_size_data]
+                    self.all_vehicle_size.append(veh_size_data)
+                    # listview
+                    veh_l, veh_w, veh_h = veh_size_data
+                    vehsize_line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
+                    vehsize_lines.append(vehsize_line)
 
-                # veh_vertex_data -> (tuple)
-                tp_veh_vertex_data = []
-                for i in range(0, len(veh_vertex_data)-1, 2):
-                    tp_veh_vertex_data.append((veh_vertex_data[i], veh_vertex_data[i+1]))
-                self.all_3dbbox_2dvertex[idx] = tp_veh_vertex_data
+                    # vehicle rot
+                    if obj.find('veh_rot'):
+                        veh_rot_data = obj.find('veh_rot').text.split()
+                        veh_rot_data = [float(rot) for rot in veh_rot_data]
+                        self.all_vehicle_rots.append(veh_rot_data)
 
-                tp_veh_3dvertex_data = []
-                for i in range(0, len(veh_3dvertex_data)-1, 2):
-                    tp_veh_3dvertex_data.append((veh_3dvertex_data[i], veh_3dvertex_data[i+1]))
-                self.all_3dbbox_3dvertex[idx] = tp_veh_3dvertex_data
+                    # 6、view (left, right)
+                    veh_view_data = obj.find('perspective').text
+                    self.all_perspective.append(veh_view_data)
+                    # 7、vehicle base point (int)
+                    veh_base_point_data = obj.find('base_point').text.split()
+                    veh_base_point_data = [int(float(base_point)) for base_point in veh_base_point_data]
+                    self.all_base_point.append(veh_base_point_data)
 
-                # veh_centre_data -> (tuple)
-                tp_veh_centre_data = (int(veh_centre_data[0]), int(veh_centre_data[1]))
+                    # veh_vertex_data -> (tuple)
+                    tp_veh_vertex_data = []
+                    for i in range(0, len(veh_vertex_data)-1, 2):
+                        tp_veh_vertex_data.append((veh_vertex_data[i], veh_vertex_data[i+1]))
+                    self.all_3dbbox_2dvertex[idx] = tp_veh_vertex_data
 
-                # 8、key_point
-                if obj.find('key_points') is not None:
-                    veh_key_point_data = obj.find('key_points')
-                    if veh_key_point_data:
-                        veh_key_point_data = veh_key_point_data.text.split()
-                        veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
-                        tp_veh_key_point_data[idx] = veh_key_point_data
+                    tp_veh_3dvertex_data = []
+                    for i in range(0, len(veh_3dvertex_data)-1, 2):
+                        tp_veh_3dvertex_data.append((veh_3dvertex_data[i], veh_3dvertex_data[i+1]))
+                    self.all_3dbbox_3dvertex[idx] = tp_veh_3dvertex_data
 
-                    # show 2d keypoint
-                    if np.array(veh_key_point_data).all():
-                        self.frame = self.paint_key_points(self.frame, veh_key_point_data)
+                    # veh_centre_data -> (tuple)
+                    tp_veh_centre_data = (int(veh_centre_data[0]), int(veh_centre_data[1]))
 
-                # draw 2D box
-                left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[0]) + int(bbox2d_data[2]), int(bbox2d_data[1]) + int(bbox2d_data[3])
-                cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
-                label = '%s:%.2f-%s' % (veh_type_data.lower(), 1.00, str(idx + 1))
+                    # 8、key_point
+                    if obj.find('key_points') is not None:
+                        veh_key_point_data = obj.find('key_points')
+                        if veh_key_point_data:
+                            veh_key_point_data = veh_key_point_data.text.split()
+                            veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
+                            tp_veh_key_point_data[idx] = veh_key_point_data
 
-                # Display the label at the top of the bounding box
-                # display the idx of each object
-                labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                top = max(top, labelSize[1])
-                cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
-                             (left + round(1.5 * labelSize[0]), top + baseLine),
-                             (255, 255, 255), cv.FILLED)
-                cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+                        # show 2d keypoint
+                        if np.array(veh_key_point_data).all():
+                            self.frame = self.paint_key_points(self.frame, veh_key_point_data)
 
-                # draw 3D box
-                drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
+                    # draw 2D box
+                    if self.select_file_xml.split("/")[-1].startswith("coop_") or self.select_file_xml.split("/")[-1].startswith("single_"):
+                        left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[2]), int(bbox2d_data[3])
+                    else:
+                        left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[0]) + int(bbox2d_data[2]), int(bbox2d_data[1]) + int(bbox2d_data[3])
+
+                    cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
+                    label = '%s:%.2f-%s' % (veh_type_data.lower(), 1.00, str(idx + 1))
+
+                    # Display the label at the top of the bounding box
+                    # display the idx of each object
+                    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    top = max(top, labelSize[1])
+                    cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
+                                 (left + round(1.5 * labelSize[0]), top + baseLine),
+                                 (255, 255, 255), cv.FILLED)
+                    cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+
+                    # draw 3D box
+                    drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
+                    idx += 1
 
             # put into list view
             current_liststr = self.listview_model_vehsize.stringList()
@@ -425,6 +513,9 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
                     self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
                     self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
+
+                    if len(self.all_vehicle_rots) != 0:
+                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
 
                     self.drawbox_img = self.draw_3dbox(self.frame)
 
@@ -507,9 +598,6 @@ class Main(QMainWindow, Ui_MainWindow):
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
-    def slider_vp_adjust_ud(self):
-        pass
-
     def save_temp_annotation_results(self):
         """ save single obj annotation """
         # if annotation file exists, revise can be done.
@@ -524,6 +612,7 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
                     self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
                     self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
+                    self.all_vehicle_rots[self.spinBox_CurAnnNum.value()] = self.doubleSpinBox_Bbox3D_Rot.value()
                     self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
                     self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
                     self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
@@ -541,6 +630,7 @@ class Main(QMainWindow, Ui_MainWindow):
                         self.all_3dbbox_2dvertex.append(self.list_3dbbox_2dvertex)
                         self.all_vehicle_type.append(self.comboBox_CurAnnType.currentText())
                         self.all_vehicle_size.append([self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(), self.doubleSpinBox_Bbox3D_Height.value()])
+                        self.all_vehicle_rots.append(self.doubleSpinBox_Bbox3D_Rot.value())
                         self.all_perspective.append(self.perspective)
                         self.all_base_point.append(self.list_3dbbox_2dvertex[1])  # base point p1
                         self.all_3dbbox_3dvertex.append(self.list_3dbbox_3dvertex)
@@ -561,7 +651,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
                 xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"
                 save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
-                self.all_vehicle_size, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
+                self.all_vehicle_size, self.all_vehicle_rots, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
             else:
                 return
 
@@ -582,6 +672,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.all_3dbbox_2dvertex.pop(-1)
                 self.all_vehicle_type.pop(-1)  # fix
                 self.all_vehicle_size.pop(-1)
+                self.all_vehicle_rots.pop(-1)
                 self.all_perspective.pop(-1)
                 self.all_base_point.pop(-1)  # base point p1
                 self.all_3dbbox_3dvertex.pop(-1)
@@ -650,6 +741,24 @@ class Main(QMainWindow, Ui_MainWindow):
         """ adjust vehicle height """
         try:
             self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
+            self.drawbox_img = self.draw_3dbox(self.frame)
+        except:
+            QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
+
+    def dial_box_rot_adjust(self):
+        """ adjust vehicle rot by dial """
+        try:
+            self.rot = self.dial_Bbox3D_Rot.value()
+            self.doubleSpinBox_Bbox3D_Rot.setValue(float(self.rot))
+            self.drawbox_img = self.draw_3dbox(self.frame)
+        except:
+            QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
+
+    def spind_3dbbox_rot(self):
+        """ adjust vehicle rot by double spin"""
+        try:
+            self.rot = self.doubleSpinBox_Bbox3D_Rot.value()
+            self.dial_Bbox3D_Rot.setValue(int(self.rot))
             self.drawbox_img = self.draw_3dbox(self.frame)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
