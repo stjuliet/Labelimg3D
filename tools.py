@@ -20,7 +20,7 @@ def ReadCalibParam(calib_xml_path):
     func: read calib parameters
     """
     xml_dir = ET.parse(calib_xml_path)
-    if xml_dir.find('f'):
+    if xml_dir.find('f') is not None:
         focal = float(xml_dir.find('f').text)
         fi = float(xml_dir.find('fi').text)
         theta = float(xml_dir.find('theta').text)

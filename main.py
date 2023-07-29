@@ -358,8 +358,7 @@ class Main(QMainWindow, Ui_MainWindow):
             self.m_trans = ReadCalibParam(self.calib_file_path)
             self.turple_vp, self.vpline = (500, 500), (1, 500, 500)
         else:
-            self.focal, self.fi, self.theta, self.cam_height, self.turple_vp, self.vpline = \
-                ReadCalibParam(self.calib_file_path)
+            self.focal, self.fi, self.theta, self.cam_height, self.turple_vp, self.vpline = ReadCalibParam(self.calib_file_path)
             # self.theta = - self.theta
             self.m_trans = ParamToMatrix(self.focal, self.fi, self.theta, self.cam_height, self.frame.shape[1]/2, self.frame.shape[0]/2)
         self.veh_turple_vp = self.turple_vp
