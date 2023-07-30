@@ -199,9 +199,50 @@ def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h, rot
     # list_3dbbox_3dvertex = [p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]
     np_3dbbox_3dveretx = np.array([p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]).reshape(-1, 3)
     np_3dbbox_centroid = np.array(centroid_3d).reshape(3,)
-    np_3dbbox_3dveretx_rot = rotate_point(np_3dbbox_3dveretx, np_3dbbox_centroid, rot)
-    list_3dbbox_3dvertex = np_3dbbox_3dveretx_rot.tolist()
+    list_3dbbox_3dvertex = rotate_point(np_3dbbox_3dveretx, np_3dbbox_centroid, rot)
 
+    list_3dbbox_2dvertex = []
+    for i in range(len(list_3dbbox_3dvertex)):
+        # if i == 1:
+        #     list_3dbbox_2dvertex.append((veh_base_point[0], veh_base_point[1]))
+        # else:
+        list_3dbbox_2dvertex.append(RDXYZToUV(m_trans, list_3dbbox_3dvertex[i][0], list_3dbbox_3dvertex[i][1], list_3dbbox_3dvertex[i][2]))
+    return list_3dbbox_2dvertex, list_3dbbox_3dvertex, centroid_2d
+
+
+def cal_3dbbox_dairv2x(m_trans, ct_world, l, w, h, angles):
+    """
+    draw 3d box
+    :param m_trans:
+    :param ct_world:
+    :param l:
+    :param w:
+    :param h:
+    :param angles: degree
+    :return:
+    """
+    angles = np.deg2rad(angles)
+    p0 = np.array([ct_world[0] - l / 2, ct_world[1] - w / 2, ct_world[2] - h / 2])
+    p1 = np.array([ct_world[0] + l / 2, ct_world[1] - w / 2, ct_world[2] - h / 2])
+    p2 = np.array([ct_world[0] + l / 2, ct_world[1] + w / 2, ct_world[2] - h / 2])
+    p3 = np.array([ct_world[0] - l / 2, ct_world[1] + w / 2, ct_world[2] - h / 2])
+    p4 = np.array([ct_world[0] - l / 2, ct_world[1] - w / 2, ct_world[2] + h / 2])
+    p5 = np.array([ct_world[0] + l / 2, ct_world[1] - w / 2, ct_world[2] + h / 2])
+    p6 = np.array([ct_world[0] + l / 2, ct_world[1] + w / 2, ct_world[2] + h / 2])
+    p7 = np.array([ct_world[0] - l / 2, ct_world[1] + w / 2, ct_world[2] + h / 2])
+
+    pts = np.reshape(np.array([p0, p1, p2, p3, p4, p5, p6, p7]), [-1, 3])  # [8, 3]
+
+    rot_matrix = np.reshape(np.array([np.cos(angles), np.sin(angles), -np.sin(angles), np.cos(angles)]), [2, 2])  # [2, 2]
+    rot_center = np.expand_dims(ct_world[0:2], -1)  # x, y: [2, 1]
+    # [2, 2] * [2, 8]
+    xy_result = np.matmul(rot_matrix, np.transpose(pts[:, :2], [1, 0]) - rot_center[0:2]) + rot_center[0:2]
+    xy_result = xy_result.transpose([1, 0])  # [8, 2]
+    z_result = np.expand_dims(pts[:, 2], -1)  # [8, 1]
+    np_3dbbox_3dvertex = np.concatenate([xy_result, z_result], -1)  # [8, 3]
+    list_3dbbox_3dvertex = [tuple(xyz) for xyz in np_3dbbox_3dvertex]
+
+    centroid_2d = RDXYZToUV(m_trans, ct_world[0], ct_world[1], ct_world[2])
     list_3dbbox_2dvertex = []
     for i in range(len(list_3dbbox_3dvertex)):
         # if i == 1:
@@ -223,10 +264,11 @@ def rotate_point(point_3d, centroid_3d, degree):
     xy_result = np.matmul(rot_matrix, point_3d[:, :2].T - rot_center[:2]) + rot_center[:2]
     xy_result = xy_result.T
     z_result = np.expand_dims(point_3d[:, 2], 1)
-    return np.hstack((xy_result, z_result))
+    xyz_results = np.hstack((xy_result, z_result))
+    return [tuple(xyz) for xyz in xyz_results]
 
 
-def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, veh_rot, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points, keypoint_flag):
+def save3dbbox_result(mode, xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_type, bbox_2dvertex, veh_size, veh_rot, veh_loc_3d, perspective, veh_base_point, bbox_3dvertex, vehicle_location, key_points, keypoint_flag):
     # create dom
     doc = Document()
 
@@ -293,12 +335,6 @@ def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_
         vehiclesize.appendChild(vehiclesize_text)
         object.appendChild(vehiclesize)
 
-        vehiclerot = doc.createElement('veh_rot')
-        temp_veh_rot_str = str(veh_rot[i])
-        vehiclerot_text = doc.createTextNode(temp_veh_rot_str)
-        vehiclerot.appendChild(vehiclerot_text)
-        object.appendChild(vehiclerot)
-
         perspect = doc.createElement('perspective')
         temp_perspect_str = perspective[i]
         perspect_text = doc.createTextNode(temp_perspect_str)
@@ -322,6 +358,22 @@ def save3dbbox_result(xml_path, filepath, calib_file_path, frame, bbox_2d, bbox_
         loc_text = doc.createTextNode(temp_loc_str)
         loc.appendChild(loc_text)
         object.appendChild(loc)
+
+        if mode == "d":
+            loc_3d = doc.createElement('veh_loc_3d')
+            temp_loc3d_str = " ".join(str(i) for i in veh_loc_3d[i])
+            loc3d_text = doc.createTextNode(temp_loc3d_str)
+            loc_3d.appendChild(loc3d_text)
+            object.appendChild(loc_3d)
+
+        vehiclerot = doc.createElement('veh_angle')
+        if mode == "d":
+            temp_veh_rot_str = str(np.deg2rad(veh_rot[i]))
+        else:
+            temp_veh_rot_str = str(veh_rot[i])
+        vehiclerot_text = doc.createTextNode(temp_veh_rot_str)
+        vehiclerot.appendChild(vehiclerot_text)
+        object.appendChild(vehiclerot)
 
         if i <= len(key_points) - 1 and keypoint_flag:
             key_point = doc.createElement('key_points')

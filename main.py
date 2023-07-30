@@ -12,7 +12,7 @@ from YoloDetect import YoloDetect
 from copy import deepcopy
 import re
 import xml.etree.ElementTree as ET
-from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, save3dbbox_result, dashLine
+from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, cal_3dbbox_dairv2x, save3dbbox_result, dashLine
 
 
 dict_map_order_str = {'car': 1, 'truck': 2, 'bus': 3}
@@ -138,6 +138,8 @@ class Main(QMainWindow, Ui_MainWindow):
         self.frame = None
         self.pushButton_ClearAnnotations.setEnabled(False)
 
+        self.mode = None
+
         self.perspective = "right"
         if self.perspective == "right":
             self.radioButton_BasePointRight.setChecked(True)
@@ -163,6 +165,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_base_point = []
         self.all_3dbbox_3dvertex =[]
         self.all_vehicle_location = []
+        self.all_vehicle_location_3d = []  # add vehicle center (m)
         self.all_veh_conf = []
         self.all_key_points = []
 
@@ -196,10 +199,14 @@ class Main(QMainWindow, Ui_MainWindow):
         qimage = QImage(rgb_img.data, rgb_img.shape[1], rgb_img.shape[0], rgb_img.shape[1] * 3, QImage.Format_RGB888)
         label_name.setPixmap(QPixmap.fromImage(qimage))
 
-    def draw_3dbox(self, frame):
+    def draw_3dbox(self, frame, mode):
         """ calculate and draw 3d box """
-        self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h, self.rot)
-        drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
+        if mode == "d":
+            self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox_dairv2x(self.m_trans, self.veh_centroid_3d, self.l, self.w, self.h, self.rot)
+            drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
+        else:
+            self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h, self.rot)
+            drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
         if self.label_ImageDisplay.points:
             self.key_points = np.array(self.label_ImageDisplay.points).flatten().tolist()  # 每次绘制3d box时，保存拉平的关键点对
             self.paint_key_points(drawbox_img, self.key_points)
@@ -262,6 +269,11 @@ class Main(QMainWindow, Ui_MainWindow):
         self.str_folder_path = QFileDialog.getExistingDirectory(self, "Choose Folder", os.getcwd())
         # support chinese path
         self.str_folder_path = self.str_folder_path.encode("utf-8").decode("utf-8")
+
+        if self.str_folder_path.split("/")[-1].startswith("dairv2x"):
+            self.mode = "d"  # "dairv2x
+        else:
+            self.mode = "o"  # others
 
         parent = os.path.abspath(os.path.join(self.str_folder_path, os.pardir))
         # yolov4 model files and thread initialize
@@ -335,6 +347,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_base_point.clear()
         self.all_3dbbox_3dvertex.clear()
         self.all_vehicle_location.clear()
+        self.all_vehicle_location_3d.clear()
         self.all_veh_conf.clear()
         self.all_key_points.clear()
         self.select_file = self.list_file_path[QModelIndex.row()]
@@ -353,15 +366,14 @@ class Main(QMainWindow, Ui_MainWindow):
             return
 
         # load calib parameters
-        if self.select_file.split("/")[-1].startswith("coop_") or self.select_file.split("/")[-1].startswith("single_"):
+        if self.mode == "d":
             self.calib_file_path = self.str_folder_path + "/calib/" + self.select_file.split("/")[-1][:-4] + "_calib.xml"
             self.m_trans = ReadCalibParam(self.calib_file_path)
-            self.turple_vp, self.vpline = (500, 500), (1, 500, 500)
         else:
             self.focal, self.fi, self.theta, self.cam_height, self.turple_vp, self.vpline = ReadCalibParam(self.calib_file_path)
             # self.theta = - self.theta
             self.m_trans = ParamToMatrix(self.focal, self.fi, self.theta, self.cam_height, self.frame.shape[1]/2, self.frame.shape[0]/2)
-        self.veh_turple_vp = self.turple_vp
+            self.veh_turple_vp = self.turple_vp
 
         # load annotation files
         # if not exists, load img to detection
@@ -381,22 +393,26 @@ class Main(QMainWindow, Ui_MainWindow):
                 if veh_type_data not in classes:
                     continue
                 else:
+                    if self.mode == "d":
+                        dtype = int
+                    else:
+                        dtype = int
                     # 1、2d box [left, top, width, height]
                     bbox2d_data = obj.find('bbox2d').text.split()
-                    bbox2d_data = [int(float(box)) for box in bbox2d_data]
+                    bbox2d_data = [dtype(float(box)) for box in bbox2d_data]
                     self.all_veh_2dbbox.append(bbox2d_data)
 
                     veh_cls_id = classes.index(veh_type_data)
                     self.all_vehicle_type.append(veh_type_data)
                     # 3、centroid 2d (int)
                     veh_centre_data = obj.find('veh_loc_2d').text.split()
-                    veh_centre_data = [int(float(loc)) for loc in veh_centre_data]
+                    veh_centre_data = [dtype(float(loc)) for loc in veh_centre_data]
                     self.all_vehicle_location.append(veh_centre_data)
                     # 4、vertex 2d (int)
                     veh_vertex_data = []  # for each box (8 vertex)
                     box_2dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex2d').text)
                     for x in box_2dvertex:
-                        veh_vertex_data += [int(float(item)) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
+                        veh_vertex_data += [dtype(float(item)) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
                     self.all_3dbbox_2dvertex.append(veh_vertex_data)
                     # vertex 3d (float)
                     veh_3dvertex_data = []  # for each box (8 vertex)
@@ -414,18 +430,19 @@ class Main(QMainWindow, Ui_MainWindow):
                     vehsize_line = str(veh_l) + "," + str(veh_w) + "," + str(veh_h)
                     vehsize_lines.append(vehsize_line)
 
-                    # vehicle rot
-                    if obj.find('veh_rot'):
-                        veh_rot_data = obj.find('veh_rot').text.split()
-                        veh_rot_data = [float(rot) for rot in veh_rot_data]
-                        self.all_vehicle_rots.append(veh_rot_data)
+                    if self.mode == "o":
+                        # vehicle rot
+                        if obj.find('veh_angle') is not None:
+                            veh_rot_data = obj.find('veh_angle').text.split()
+                            veh_rot_data = [float(rot) for rot in veh_rot_data]
+                            self.all_vehicle_rots.append(veh_rot_data)
 
                     # 6、view (left, right)
                     veh_view_data = obj.find('perspective').text
                     self.all_perspective.append(veh_view_data)
                     # 7、vehicle base point (int)
                     veh_base_point_data = obj.find('base_point').text.split()
-                    veh_base_point_data = [int(float(base_point)) for base_point in veh_base_point_data]
+                    veh_base_point_data = [dtype(float(base_point)) for base_point in veh_base_point_data]
                     self.all_base_point.append(veh_base_point_data)
 
                     # veh_vertex_data -> (tuple)
@@ -440,14 +457,22 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_3dbbox_3dvertex[idx] = tp_veh_3dvertex_data
 
                     # veh_centre_data -> (tuple)
-                    tp_veh_centre_data = (int(veh_centre_data[0]), int(veh_centre_data[1]))
+                    tp_veh_centre_data = (dtype(veh_centre_data[0]), dtype(veh_centre_data[1]))
+
+                    if self.mode == "d":
+                        veh_centre_3d_data = obj.find('veh_loc_3d').text.split()
+                        veh_centre_3d_data = [float(loc) for loc in veh_centre_3d_data]
+                        self.all_vehicle_location_3d.append(veh_centre_3d_data)
+                        veh_angle_data = obj.find('veh_angle').text
+                        veh_angle_data = np.rad2deg(float(veh_angle_data))
+                        self.all_vehicle_rots.append(veh_angle_data)
 
                     # 8、key_point
                     if obj.find('key_points') is not None:
                         veh_key_point_data = obj.find('key_points')
                         if veh_key_point_data:
                             veh_key_point_data = veh_key_point_data.text.split()
-                            veh_key_point_data = [int(float(key_point)) for key_point in veh_key_point_data]
+                            veh_key_point_data = [dtype(float(key_point)) for key_point in veh_key_point_data]
                             tp_veh_key_point_data[idx] = veh_key_point_data
 
                         # show 2d keypoint
@@ -455,7 +480,7 @@ class Main(QMainWindow, Ui_MainWindow):
                             self.frame = self.paint_key_points(self.frame, veh_key_point_data)
 
                     # draw 2D box
-                    if self.select_file_xml.split("/")[-1].startswith("coop_") or self.select_file_xml.split("/")[-1].startswith("single_"):
+                    if self.mode == "d":
                         left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[2]), int(bbox2d_data[3])
                     else:
                         left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[0]) + int(bbox2d_data[2]), int(bbox2d_data[1]) + int(bbox2d_data[3])
@@ -509,14 +534,23 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.base_point = self.all_base_point[self.spinBox_CurAnnNum.value()]
                     self.veh_base_point = self.base_point
 
-                    self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
-                    self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
-                    self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
+                    if self.mode == "d":
+                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0]
+                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1]
+                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2]
+                    else:
+                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
+                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
+                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
 
-                    if len(self.all_vehicle_rots) != 0:
+                    if self.mode == "d":
+                        self.centriod_3d = self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value()]
+                        self.veh_centroid_3d = self.centriod_3d
                         self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
+                    else:
+                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()][0]
 
-                    self.drawbox_img = self.draw_3dbox(self.frame)
+                    self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
 
             else:  # make annotation from zero
                 try:
@@ -540,13 +574,13 @@ class Main(QMainWindow, Ui_MainWindow):
                         # key-point mode
                         if self.actionkeypoint_only.isChecked():
                             if self.label_ImageDisplay.points:
-                                self.drawbox_img = self.draw_3dbox(self.frame)
+                                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
                             else:
                                 QMessageBox.information(self, "Information", "Please make key points annotation first! ",
                                                         QMessageBox.Yes | QMessageBox.No)
                                 self.spinBox_CurAnnNum.setValue(-1)
                         else:
-                            self.drawbox_img = self.draw_3dbox(self.frame)
+                            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
                 except:
                     QMessageBox.information(self, "Information", "Please choose one vehicle! ",
                                             QMessageBox.Yes | QMessageBox.No)
@@ -554,46 +588,66 @@ class Main(QMainWindow, Ui_MainWindow):
     def radio_bp_left(self):
         """ choose base point: left bottom """
         try:
-            self.perspective = "left"
-            self.base_point = (self.veh_box[0], self.veh_box[1] + self.veh_box[3])
-            self.veh_base_point = self.base_point
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                QMessageBox.information(self, "Information", "perspective ignored! ",
+                                        QMessageBox.Yes | QMessageBox.No)
+            else:
+                self.perspective = "left"
+                self.base_point = (self.veh_box[0], self.veh_box[1] + self.veh_box[3])
+                self.veh_base_point = self.base_point
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def radio_bp_right(self):
         """ choose base point: right bottom """
         try:
-            self.perspective = "right"
-            self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
-            self.veh_base_point = self.base_point
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                QMessageBox.information(self, "Information", "perspective ignored! ",
+                                        QMessageBox.Yes | QMessageBox.No)
+            else:
+                self.perspective = "right"
+                self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
+                self.veh_base_point = self.base_point
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def slider_bp_adjust_lr(self):
         """ adjust base point: left right """
         try:
-            self.veh_base_point = (self.base_point[0] + self.horizontalSlider_BasePointAdj_LR.value(), self.veh_base_point[1])
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                self.veh_centroid_3d = (self.veh_centroid_3d[0], self.centriod_3d[1] - self.horizontalSlider_BasePointAdj_LR.value() / 100.0, self.veh_centroid_3d[2])
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
+            else:
+                self.veh_base_point = (self.base_point[0] + self.horizontalSlider_BasePointAdj_LR.value(), self.veh_base_point[1])
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def slider_bp_adjust_ud(self):
         """ choose base point: top bottom """
         try:
-            self.veh_base_point = (self.veh_base_point[0], self.base_point[1] + self.verticalSlider_BasePointAdj_UD.value())
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                self.veh_centroid_3d = (self.centriod_3d[0] - self.verticalSlider_BasePointAdj_UD.value() / 30.0, self.veh_centroid_3d[1], self.veh_centroid_3d[2])
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
+            else:
+                self.veh_base_point = (self.veh_base_point[0], self.base_point[1] + self.verticalSlider_BasePointAdj_UD.value())
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def slider_vp_adjust_lr(self):
         """ move vp along horizon line """
         try:
-            self.veh_vpx = self.turple_vp[0] + self.horizontalSlider_VPAdj_LR.value()
-            self.veh_vpy = self.vpline[0] * (self.veh_vpx - self.vpline[1]) + self.vpline[2]
-            self.veh_turple_vp = (self.veh_vpx, self.veh_vpy)
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                QMessageBox.information(self, "Information", "vp ignored! ",
+                                        QMessageBox.Yes | QMessageBox.No)
+            else:
+                self.veh_vpx = self.turple_vp[0] + self.horizontalSlider_VPAdj_LR.value()
+                self.veh_vpy = self.vpline[0] * (self.veh_vpx - self.vpline[1]) + self.vpline[2]
+                self.veh_turple_vp = (self.veh_vpx, self.veh_vpy)
+                self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
@@ -616,6 +670,8 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
                     self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
                     self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
+                    if self.mode == "d":
+                        self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value()] = self.veh_centroid_3d
             else:
                 # if not clear, not duplicate, add can be done.
                 # if clear, all_list empty, save can not be done.
@@ -634,6 +690,8 @@ class Main(QMainWindow, Ui_MainWindow):
                         self.all_base_point.append(self.list_3dbbox_2dvertex[1])  # base point p1
                         self.all_3dbbox_3dvertex.append(self.list_3dbbox_3dvertex)
                         self.all_vehicle_location.append(self.centroid_2d)
+                        if self.mode == "d":
+                            self.all_vehicle_location_3d.append(self.veh_centroid_3d)
                         self.all_veh_conf.append(self.veh_conf)
                         self.all_key_points.append(self.key_points)
                         self.label_ImageDisplay.points.clear()
@@ -649,8 +707,8 @@ class Main(QMainWindow, Ui_MainWindow):
                 # save annotation img
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
                 xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"
-                save3dbbox_result(xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
-                self.all_vehicle_size, self.all_vehicle_rots, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
+                save3dbbox_result(self.mode, xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
+                self.all_vehicle_size, self.all_vehicle_rots, self.all_vehicle_location_3d, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
             else:
                 return
 
@@ -676,6 +734,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.all_base_point.pop(-1)  # base point p1
                 self.all_3dbbox_3dvertex.pop(-1)
                 self.all_vehicle_location.pop(-1)
+                self.all_vehicle_location_3d.pop(-1)
                 self.all_veh_conf.pop(-1)  # fix
                 self.all_key_points.pop(-1)
                 for i in range(len(self.list_box)):
@@ -723,24 +782,33 @@ class Main(QMainWindow, Ui_MainWindow):
     def spind_3dbbox_length(self):
         """ adjust vehicle length """
         try:
-            self.l = self.doubleSpinBox_Bbox3D_Length.value() * 1000.0
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                self.l = self.doubleSpinBox_Bbox3D_Length.value()
+            else:
+                self.l = self.doubleSpinBox_Bbox3D_Length.value() * 1000.0
+            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def spind_3dbbox_width(self):
         """ adjust vehicle width """
         try:
-            self.w = self.doubleSpinBox_Bbox3D_Width.value() * 1000.0
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                self.w = self.doubleSpinBox_Bbox3D_Width.value()
+            else:
+                self.w = self.doubleSpinBox_Bbox3D_Width.value() * 1000.0
+            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
     def spind_3dbbox_height(self):
         """ adjust vehicle height """
         try:
-            self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            if self.mode == "d":
+                self.h = self.doubleSpinBox_Bbox3D_Height.value()
+            else:
+                self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
+            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
@@ -749,7 +817,7 @@ class Main(QMainWindow, Ui_MainWindow):
         try:
             self.rot = self.dial_Bbox3D_Rot.value()
             self.doubleSpinBox_Bbox3D_Rot.setValue(float(self.rot))
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
@@ -758,7 +826,7 @@ class Main(QMainWindow, Ui_MainWindow):
         try:
             self.rot = self.doubleSpinBox_Bbox3D_Rot.value()
             self.dial_Bbox3D_Rot.setValue(int(self.rot))
-            self.drawbox_img = self.draw_3dbox(self.frame)
+            self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
             QMessageBox.information(self, "Information", "Please choose one vehicle! ", QMessageBox.Yes | QMessageBox.No)
 
