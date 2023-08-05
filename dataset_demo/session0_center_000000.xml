@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+	<filename>E:/PythonCodes/labelimg3d_v3/Labelimg3D/dataset_demo/session0_center_000000.jpg</filename>
+	<calibfile>E:/PythonCodes/labelimg3d_v3/Labelimg3D/dataset_demo/calib/session0_centre_calibParams.xml</calibfile>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<object>
+		<type>Car</type>
+		<bbox2d>389 268 65 51</bbox2d>
+		<vertex2d>(400, 320) (453, 319) (440, 306) (389, 308) (399, 276) (452, 275) (439, 264) (388, 265)</vertex2d>
+		<veh_size>4.5 1.8 1.5</veh_size>
+		<perspective>right</perspective>
+		<base_point>453 319</base_point>
+		<vertex3d>(7375.115639226818, 99837.42776576914, 0.0) (9175.00946623462, 99856.9779959265, 0.0) (9126.133890841233, 104356.71256344601, 0.0) (7326.24006383343, 104337.16233328865, 0.0) (7375.115639226818, 99837.42776576914, 1500.0) (9175.00946623462, 99856.9779959265, 1500.0) (9126.133890841233, 104356.71256344601, 1500.0) (7326.24006383343, 104337.16233328865, 1500.0)</vertex3d>
+		<veh_loc_2d>420 292</veh_loc_2d>
+		<veh_angle>180.0</veh_angle>
+	</object>
+</annotation>

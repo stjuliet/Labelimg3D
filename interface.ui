@@ -573,6 +573,7 @@
      <string>Config</string>
     </property>
     <addaction name="actionvehicle_size"/>
+    <addaction name="actionpretrain_model_3d"/>
    </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuRevise_Mode"/>
@@ -611,6 +612,11 @@
     <string>vehicle_size</string>
    </property>
   </action>
+  <action name="actionpretrain_model_3d">
+   <property name="text">
+    <string>pretrain_model_3d</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections>
@@ -621,8 +627,8 @@
    <slot>save_annotation_results()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1543</x>
-     <y>534</y>
+     <x>1843</x>
+     <y>491</y>
     </hint>
     <hint type="destinationlabel">
      <x>826</x>
@@ -637,8 +643,8 @@
    <slot>slider_bp_adjust_lr()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1307</x>
-     <y>218</y>
+     <x>1788</x>
+     <y>192</y>
     </hint>
     <hint type="destinationlabel">
      <x>827</x>
@@ -653,8 +659,8 @@
    <slot>slider_bp_adjust_ud()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1349</x>
-     <y>241</y>
+     <x>1822</x>
+     <y>221</y>
     </hint>
     <hint type="destinationlabel">
      <x>1179</x>
@@ -669,8 +675,8 @@
    <slot>slider_vp_adjust_lr()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1349</x>
-     <y>292</y>
+     <x>1822</x>
+     <y>262</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -685,8 +691,8 @@
    <slot>spin_cur_anno_order()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1245</x>
-     <y>127</y>
+     <x>1608</x>
+     <y>104</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -701,8 +707,8 @@
    <slot>combo_cur_anno_type()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1369</x>
-     <y>127</y>
+     <x>1732</x>
+     <y>104</y>
     </hint>
     <hint type="destinationlabel">
      <x>1180</x>
@@ -717,8 +723,8 @@
    <slot>radio_bp_left()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1228</x>
-     <y>155</y>
+     <x>1589</x>
+     <y>130</y>
     </hint>
     <hint type="destinationlabel">
      <x>823</x>
@@ -733,8 +739,8 @@
    <slot>radio_bp_right()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1302</x>
-     <y>155</y>
+     <x>1663</x>
+     <y>130</y>
     </hint>
     <hint type="destinationlabel">
      <x>1179</x>
@@ -749,8 +755,8 @@
    <slot>spind_3dbbox_length()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1174</x>
-     <y>490</y>
+     <x>1538</x>
+     <y>455</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -765,8 +771,8 @@
    <slot>spind_3dbbox_width()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1306</x>
-     <y>490</y>
+     <x>1680</x>
+     <y>455</y>
     </hint>
     <hint type="destinationlabel">
      <x>955</x>
@@ -781,8 +787,8 @@
    <slot>spind_3dbbox_height()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1446</x>
-     <y>490</y>
+     <x>1821</x>
+     <y>455</y>
     </hint>
     <hint type="destinationlabel">
      <x>1169</x>
@@ -797,8 +803,8 @@
    <slot>listview_doubleclick_slot()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1040</x>
-     <y>771</y>
+     <x>1844</x>
+     <y>947</y>
     </hint>
     <hint type="destinationlabel">
      <x>822</x>
@@ -813,8 +819,8 @@
    <slot>save_temp_annotation_results()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1433</x>
-     <y>534</y>
+     <x>1743</x>
+     <y>491</y>
     </hint>
     <hint type="destinationlabel">
      <x>822</x>
@@ -829,8 +835,8 @@
    <slot>clear_single_annotation()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1263</x>
-     <y>534</y>
+     <x>1643</x>
+     <y>491</y>
     </hint>
     <hint type="destinationlabel">
      <x>1019</x>
@@ -877,8 +883,8 @@
    <slot>transfer_anno_vehicle_size()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1347</x>
-     <y>648</y>
+     <x>1844</x>
+     <y>641</y>
     </hint>
     <hint type="destinationlabel">
      <x>1385</x>
@@ -893,8 +899,8 @@
    <slot>remove_listview_vehsize_item()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1350</x>
-     <y>685</y>
+     <x>1844</x>
+     <y>641</y>
     </hint>
     <hint type="destinationlabel">
      <x>1385</x>
@@ -909,8 +915,8 @@
    <slot>dial_box_rot_adjust()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1294</x>
-     <y>371</y>
+     <x>1709</x>
+     <y>400</y>
     </hint>
     <hint type="destinationlabel">
      <x>1580</x>
@@ -925,12 +931,28 @@
    <slot>spind_3dbbox_rot()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1396</x>
-     <y>372</y>
+     <x>1822</x>
+     <y>350</y>
     </hint>
     <hint type="destinationlabel">
      <x>1578</x>
      <y>401</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionpretrain_model_3d</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>config_pretrain_model_3d()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>936</x>
+     <y>492</y>
     </hint>
    </hints>
   </connection>
@@ -963,5 +985,6 @@
   <slot>transfer_anno_vehicle_size()</slot>
   <slot>dial_box_rot_adjust()</slot>
   <slot>spind_3dbbox_rot()</slot>
+  <slot>config_pretrain_model_3d()</slot>
  </slots>
 </ui>

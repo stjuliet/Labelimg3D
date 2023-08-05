@@ -288,9 +288,12 @@ class Ui_MainWindow(object):
         self.actionvehicle_size.setCheckable(False)
         self.actionvehicle_size.setEnabled(True)
         self.actionvehicle_size.setObjectName("actionvehicle_size")
+        self.actionpretrain_model_3d = QtWidgets.QAction(MainWindow)
+        self.actionpretrain_model_3d.setObjectName("actionpretrain_model_3d")
         self.menuMenu.addAction(self.action_open_folder)
         self.menuRevise_Mode.addAction(self.actionkeypoint_only)
         self.menuConfig.addAction(self.actionvehicle_size)
+        self.menuConfig.addAction(self.actionpretrain_model_3d)
         self.menubar.addAction(self.menuMenu.menuAction())
         self.menubar.addAction(self.menuRevise_Mode.menuAction())
         self.menubar.addAction(self.menuConfig.menuAction())
@@ -316,6 +319,7 @@ class Ui_MainWindow(object):
         self.listView_VehSize.doubleClicked['QModelIndex'].connect(MainWindow.remove_listview_vehsize_item)
         self.dial_Bbox3D_Rot.valueChanged['int'].connect(MainWindow.dial_box_rot_adjust)
         self.doubleSpinBox_Bbox3D_Rot.valueChanged['double'].connect(MainWindow.spind_3dbbox_rot)
+        self.actionpretrain_model_3d.triggered.connect(MainWindow.config_pretrain_model_3d)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -353,4 +357,5 @@ class Ui_MainWindow(object):
         self.action_open_folder.setText(_translate("MainWindow", "Open Folder..."))
         self.actionkeypoint_only.setText(_translate("MainWindow", "keypoint"))
         self.actionvehicle_size.setText(_translate("MainWindow", "vehicle_size"))
+        self.actionpretrain_model_3d.setText(_translate("MainWindow", "pretrain_model_3d"))
 

@@ -4,6 +4,7 @@ import cv2 as cv
 import sys
 from interface import *
 from dialog_vehicle_size import Ui_Dialog as dialog_vehsize
+from sub_dialogs.window_pretrain_model_3d import Main_Pretrain
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -178,6 +179,9 @@ class Main(QMainWindow, Ui_MainWindow):
         self.label_ImageDisplay.setScaledContents(True)
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # style sheet
 
+        self.actionpretrain_model_3d.triggered.connect(self.config_pretrain_model_3d)
+        self.window_pretrain_model_3d = Main_Pretrain()
+
     def closeEvent(self, event):
         reply = QMessageBox.question(self, "info", "Are you sure to exit?",
                                         QMessageBox.Yes | QMessageBox.No)
@@ -319,6 +323,10 @@ class Main(QMainWindow, Ui_MainWindow):
                                         QMessageBox.Yes | QMessageBox.No)
         else:
             return
+
+    def config_pretrain_model_3d(self):
+        """ config pretrain model 3d """
+        self.window_pretrain_model_3d.show()
 
     def transfer_anno_vehicle_size(self, QModelIndex):
         row = self.listview_model_vehsize.stringList()[QModelIndex.row()]

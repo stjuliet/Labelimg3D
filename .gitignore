@@ -5,6 +5,8 @@ main.spec
 /dist/
 
 /imgs/old
+/model_data/
+/test_imgs/
 
 /model_us_yolov4/
 /model_yolov4/
