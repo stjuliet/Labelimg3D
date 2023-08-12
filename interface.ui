@@ -278,6 +278,21 @@
                <string>Bus</string>
               </property>
              </item>
+             <item>
+              <property name="text">
+               <string>Vehicle</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Non-motor</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Pedestrian</string>
+              </property>
+             </item>
             </widget>
            </item>
           </layout>
@@ -553,7 +568,7 @@
      <x>0</x>
      <y>0</y>
      <width>1873</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuMenu">
@@ -567,6 +582,7 @@
      <string>Mode</string>
     </property>
     <addaction name="actionkeypoint_only"/>
+    <addaction name="actionpedes"/>
    </widget>
    <widget class="QMenu" name="menuConfig">
     <property name="title">
@@ -615,6 +631,17 @@
   <action name="actionpretrain_model_3d">
    <property name="text">
     <string>pretrain_model_3d</string>
+   </property>
+  </action>
+  <action name="actionpedes">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>pedes</string>
    </property>
   </action>
  </widget>

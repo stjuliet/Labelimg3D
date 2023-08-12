@@ -16,8 +16,8 @@ import xml.etree.ElementTree as ET
 from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, cal_3dbbox_dairv2x, save3dbbox_result, dashLine
 
 
-dict_map_order_str = {'car': 1, 'truck': 2, 'bus': 3}
-classes = ["Car", "Truck", "Bus"]
+dict_map_order_str = {'Car': 1, 'Truck': 2, 'Bus': 3, 'Vehicle': 4, 'Non-motor': 5, 'Pedestrian': 6}
+classes = ["Car", "Truck", "Bus", "Vehicle", "Non-motor", "Pedestrian"]
 
 
 # support key-point annotation, and wheel scale
@@ -140,6 +140,8 @@ class Main(QMainWindow, Ui_MainWindow):
         self.pushButton_ClearAnnotations.setEnabled(False)
 
         self.mode = None
+        self.pre_anno_dir = None
+        self.pedes_mode = False
 
         self.perspective = "right"
         if self.perspective == "right":
@@ -151,6 +153,10 @@ class Main(QMainWindow, Ui_MainWindow):
         self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000.0
         self.rot = self.doubleSpinBox_Bbox3D_Rot.value()
         self.key_point_nums = 4
+
+        self.list_box = []
+        self.list_type = []
+        self.list_conf = []
 
         self.veh_box = []
         self.key_points = []
@@ -269,6 +275,7 @@ class Main(QMainWindow, Ui_MainWindow):
 
     def choose_img_folder(self):
         """ choose annotation folder """
+        self.pedes_mode = self.actionpedes.isChecked()
         self.list_file_path = []
         self.str_folder_path = QFileDialog.getExistingDirectory(self, "Choose Folder", os.getcwd())
         # support chinese path
@@ -293,6 +300,8 @@ class Main(QMainWindow, Ui_MainWindow):
             for single_filename in all_file_names:
                 if single_filename == 'calib':
                     self.calib_file_path = self.str_folder_path + "/calib/" + os.listdir(os.path.join(self.str_folder_path, "calib"))[0]
+                elif single_filename == "PreAnnos2D" and self.pedes_mode:
+                    self.pre_anno_dir = os.path.join(self.str_folder_path, "PreAnnos2D")
                 elif os.path.splitext(single_filename)[1] == ".bmp" or ".jpg" or "jpeg" or ".png":
                     self.list_file_path.append(self.str_folder_path + "/" + single_filename)  # get all suitable files
             # show in listview
@@ -346,6 +355,8 @@ class Main(QMainWindow, Ui_MainWindow):
 
     def listview_doubleclick_slot(self, QModelIndex):
         """ double-click to do object detection, and load calib information"""
+        self.pedes_mode = self.actionpedes.isChecked()
+
         self.all_veh_2dbbox.clear()
         self.all_3dbbox_2dvertex.clear()
         self.all_vehicle_type.clear()
@@ -385,7 +396,10 @@ class Main(QMainWindow, Ui_MainWindow):
 
         # load annotation files
         # if not exists, load img to detection
-        self.select_file_xml = self.select_file.split('.')[0] + '.xml'
+        if self.pedes_mode:
+            self.select_file_xml = self.select_file.split('.')[0] + '_sup.xml'
+        else:
+            self.select_file_xml = self.select_file.split('.')[0] + '.xml'
         vehsize_lines = []  # for listview
         if os.path.exists(self.select_file_xml):
             tree = ET.parse(self.select_file_xml)
@@ -441,9 +455,10 @@ class Main(QMainWindow, Ui_MainWindow):
                     if self.mode == "o":
                         # vehicle rot
                         if obj.find('veh_angle') is not None:
-                            veh_rot_data = obj.find('veh_angle').text.split()
-                            veh_rot_data = [float(rot) for rot in veh_rot_data]
+                            veh_rot_data = float(obj.find('veh_angle').text)
                             self.all_vehicle_rots.append(veh_rot_data)
+                        else:
+                            self.all_vehicle_rots.append(0.0)
 
                     # 6、view (left, right)
                     veh_view_data = obj.find('perspective').text
@@ -506,9 +521,10 @@ class Main(QMainWindow, Ui_MainWindow):
                     cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
 
                     # draw 3D box
-                    drawbox_img = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
+                    self.frame = self.paint(self.frame, tp_veh_vertex_data, tp_veh_centre_data)
                     idx += 1
-
+            self.textEdit_ObjNums.setText(str(idx))
+            self.obj_num = int(self.textEdit_ObjNums.toPlainText())
             # put into list view
             current_liststr = self.listview_model_vehsize.stringList()
             for v in set(vehsize_lines):
@@ -518,8 +534,40 @@ class Main(QMainWindow, Ui_MainWindow):
             self.listView_VehSize.setModel(self.listview_model_vehsize)
 
             self.all_key_points = tp_veh_key_point_data.tolist()
-            self.show_img_in_label(self.label_ImageDisplay, drawbox_img)
+            self.show_img_in_label(self.label_ImageDisplay, self.frame)
+        elif self.pre_anno_dir is not None:
+            pre_anno_path = os.path.join(self.pre_anno_dir, self.select_file.split("/")[-1][:-4] + "_bbox2d.txt")
+            with open(pre_anno_path, "r", encoding="utf-8") as f:
+                pre_annos = f.readlines()
+            idx = 0
+            for pre_anno in pre_annos:
+                pre_anno = pre_anno.strip("\n").split(" ")
+                cls_name = str(pre_anno[0])
+                score = float(pre_anno[1])
+                left, top, right, bottom = np.array(pre_anno[2:], dtype=np.int)
 
+                self.list_box.append([left, top, right - left, bottom - top])
+                self.list_type.append(cls_name)
+                self.list_conf.append(score)
+
+                # draw 2D box
+                cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
+                label = '%s:%.2f-%s' % (cls_name, score, str(idx + 1))
+
+                # Display the label at the top of the bounding box
+                # display the idx of each object
+                labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                top = max(top, labelSize[1])
+                cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
+                             (left + round(1.5 * labelSize[0]), top + baseLine),
+                             (255, 255, 255), cv.FILLED)
+                cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+
+                idx += 1
+            self.textEdit_ObjNums.setText(str(idx))
+            self.obj_num = int(self.textEdit_ObjNums.toPlainText())
+
+            self.show_img_in_label(self.label_ImageDisplay, self.frame)
         else:
             # object detection
             self.thread.Init(self.frame)
@@ -535,7 +583,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
                     self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # max obj num
                     self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value()]
-                    self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value()].lower()
+                    self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value()]
                     self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
 
                     self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value()]
@@ -546,18 +594,26 @@ class Main(QMainWindow, Ui_MainWindow):
                         self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0]
                         self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1]
                         self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2]
+                        self.doubleSpinBox_Bbox3D_Length.setValue(self.l)
+                        self.doubleSpinBox_Bbox3D_Width.setValue(self.w)
+                        self.doubleSpinBox_Bbox3D_Height.setValue(self.h)
                     else:
                         self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
                         self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
                         self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
+                        self.doubleSpinBox_Bbox3D_Length.setValue(self.l / 1000)
+                        self.doubleSpinBox_Bbox3D_Width.setValue(self.w / 1000)
+                        self.doubleSpinBox_Bbox3D_Height.setValue(self.h / 1000)
 
                     if self.mode == "d":
                         self.centriod_3d = self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value()]
                         self.veh_centroid_3d = self.centriod_3d
                         self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
                     else:
-                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()][0]
-
+                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
+                        self.dial_Bbox3D_Rot.setValue(self.rot)
+                    self.dial_Bbox3D_Rot.setValue(self.rot)
+                    self.doubleSpinBox_Bbox3D_Rot.setValue(self.rot)
                     self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
 
             else:  # make annotation from zero
@@ -714,7 +770,10 @@ class Main(QMainWindow, Ui_MainWindow):
             if self.all_3dbbox_2dvertex:
                 # save annotation img
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
-                xml_path = self.select_file[0:len(self.select_file)-4] + ".xml"
+                if self.pre_anno_dir is not None:
+                    xml_path = self.select_file[0:len(self.select_file)-4] + "_sup.xml"
+                else:
+                    xml_path = self.select_file[0:len(self.select_file) - 4] + ".xml"
                 save3dbbox_result(self.mode, xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
                 self.all_vehicle_size, self.all_vehicle_rots, self.all_vehicle_location_3d, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
             else:
