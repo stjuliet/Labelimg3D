@@ -4,6 +4,7 @@ import cv2 as cv
 import sys
 from interface import *
 from dialog_vehicle_size import Ui_Dialog as dialog_vehsize
+from sub_dialogs.bbox2d_anno import Ui_Dialog as dialog_bbox2d
 from sub_dialogs.window_pretrain_model_3d import Main_Pretrain
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -18,6 +19,12 @@ from tools import ReadCalibParam, ParamToMatrix, cal_3dbbox, cal_3dbbox_dairv2x,
 
 dict_map_order_str = {'Car': 1, 'Truck': 2, 'Bus': 3, 'Vehicle': 4, 'Non-motor': 5, 'Pedestrian': 6}
 classes = ["Car", "Truck", "Bus", "Vehicle", "Non-motor", "Pedestrian"]
+veh_size_dict = {"Car": [4.5, 1.8, 1.5],
+                 "Truck": [6.0, 2.2, 2.4],
+                 "Bus": [10.0, 2.5, 2.6],
+                 "Vehicle": None,
+                 "Non-motor": [1.8, 0.8, 1.5],
+                 "Pedestrian": [0.6, 0.7, 1.5]}
 
 
 # support key-point annotation, and wheel scale
@@ -27,9 +34,7 @@ class MyLabel(QLabel):
 
     def __init__(self, parent=None, window_width=1920, window_height=1080):
         super(MyLabel, self).__init__((parent))
-        self.points = []
-        self.paint_flag = False
-        self.keypoint_flag = False
+        # for resize screen
         self.window_width = window_width
         self.window_height = window_height
         self.setMouseTracking(True)
@@ -39,95 +44,207 @@ class MyLabel(QLabel):
         self.m_drawPoint = QPointF(0.0, 0.0)
         self.m_pressed = False
         self.m_lastPos = QPoint()
+
+        # for keypoint
+        self.points = []
+        self.paint_flag = False
+        self.keypoint_flag = False
         self.scaleX = 0.0
         self.scaleY = 0.0
         self.q_points = []  # QPoint for show
 
+        # for add new bbox2d
+        self.add_new_bbox2d_flag = False
+        self.bbox2d = []
+        self.types = []
+        self.base_point = []
+        self.veh_size = []
+        self.q_bbox2d = []
+        self.q_start_point = None  # QPoint for show
+        self.q_end_point = None  # QPoint for show
+        self.flag = False
+        self.show_cursor = False
+
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.m_pressed = True
-            self.m_lastPos = event.pos()
-        if self.scaleX != 0 and self.scaleY != 0 and self.keypoint_flag:
+        if self.add_new_bbox2d_flag:
+            if self.scaleX != 0 and self.scaleY != 0:
+                if event.button() == Qt.LeftButton:
+                    self.flag = True
+                    self.q_start_point = event.pos()
+                    self.q_end_point = event.pos()
+                elif event.button() == Qt.RightButton:
+                    if len(self.q_bbox2d) > 0:
+                        self.bbox2d.pop(-1)
+                        self.q_bbox2d.pop(-1)
+                        self.types.pop(-1)
+                        self.base_point.pop(-1)
+                        self.veh_size.pop(-1)
+                        self.q_start_point = None
+                        self.q_end_point = None
+                        self.update()
+                # if self.flag:
+                #     self.update()
+        elif self.keypoint_flag:
+            if self.scaleX != 0 and self.scaleY != 0:
+                if event.button() == Qt.LeftButton:
+                    self.paint_flag = True
+                    pt = event.pos()  # QPoint
+                    pt_x = event.x() * self.scaleX
+                    pt_y = event.y() * self.scaleY
+                    self.points.append([pt_x, pt_y])
+                    self.q_points.append(pt)
+                elif event.button() == Qt.RightButton and self.points:
+                    self.points.pop(-1)
+                    self.q_points.pop(-1)
+                if self.paint_flag:
+                    self.update()
+        else:
             if event.button() == Qt.LeftButton:
-                self.paint_flag = True
-                pt = event.pos()  # QPoint
-                pt_x = event.x() * self.scaleX
-                pt_y = event.y() * self.scaleY
-                self.points.append([pt_x, pt_y])
-                self.q_points.append(pt)
-            elif event.button() == Qt.RightButton and self.points:
-                self.points.pop(-1)
-                self.q_points.pop(-1)
-            if self.paint_flag:
-                self.update()
+                self.m_pressed = True
+                self.m_lastPos = event.pos()
 
     def mouseDoubleClickEvent(self, event):
-        # 双击屏幕复位
-        self.m_scaleValue = 1.0
-        self.m_drawPoint = QPointF(0.0, 0.0)
-        self.update()
-
-    def mouseMoveEvent(self, event):
-        if self.m_pressed:
-            delta = event.pos() - self.m_lastPos
-            self.m_lastPos = event.pos()
-            self.m_drawPoint += delta
+        if self.add_new_bbox2d_flag:
+            pass
+        else:  # 双击屏幕复位
+            self.m_scaleValue = 1.0
+            self.m_drawPoint = QPointF(0.0, 0.0)
             self.update()
 
+    def mouseMoveEvent(self, event):
+        if self.add_new_bbox2d_flag:
+            if self.show_cursor:
+                self.pos = event.pos()
+                self.update()
+            if self.flag:
+                self.q_end_point = event.pos()
+                self.update()
+        else:
+            if self.m_pressed:
+                delta = event.pos() - self.m_lastPos
+                self.m_lastPos = event.pos()
+                self.m_drawPoint += delta
+                self.update()
+
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.m_pressed = False
+        if self.add_new_bbox2d_flag:
+            if event.button() == Qt.LeftButton:
+                self.flag = False
+                self.bbox2d.append([int(self.q_start_point.x() * self.scaleX / self.m_scaleValue), int(self.q_start_point.y() * self.scaleY / self.m_scaleValue),
+                                    int(abs(self.q_end_point.x() - self.q_start_point.x()) * self.scaleX / self.m_scaleValue),
+                                    int(abs(self.q_end_point.y() - self.q_start_point.y()) * self.scaleY / self.m_scaleValue)])
+                self.q_bbox2d.append(QRect(self.q_start_point.x(), self.q_start_point.y(),
+                                    abs(self.q_end_point.x() - self.q_start_point.x()),
+                                    abs(self.q_end_point.y() - self.q_start_point.y())))
+                self.base_point.append([int(self.q_start_point.x() * self.scaleX / self.m_scaleValue),
+                                        int(self.q_end_point.y() * self.scaleY / self.m_scaleValue)])  # fixed bugs
+
+                q_dialog, dialog = QDialog(), dialog_bbox2d()
+                # add classes
+                dialog.setupUi(q_dialog)
+                listview_model = QStringListModel()
+                listview_model.setStringList(classes)
+                dialog.listView_type.setModel(listview_model)
+
+                q_dialog.show()
+                if q_dialog.exec() == QDialog.Accepted:
+                    index = dialog.listView_type.currentIndex().row()
+                    self.types.append(str(classes[index]))
+                    self.veh_size.append(veh_size_dict[str(classes[index])])
+                else:
+                    self.bbox2d.pop(-1)
+                    self.q_bbox2d.pop(-1)
+                    # self.base_point.pop(-1)
+                    # self.veh_size.pop(-1)
+                    self.q_start_point = None
+                    self.q_end_point = None
+                    self.update()
+        else:
+            if event.button() == Qt.LeftButton:
+                self.m_pressed = False
 
     def wheelEvent(self, event):
-        oldScale = self.m_scaleValue
-        if event.angleDelta().y() > 0:
-            self.m_scaleValue *= 1.1
+        if self.add_new_bbox2d_flag:
+            pass
         else:
-            self.m_scaleValue *= 0.9
+            oldScale = self.m_scaleValue
+            if event.angleDelta().y() > 0:
+                self.m_scaleValue *= 1.1
+            else:
+                self.m_scaleValue *= 0.9
 
-        if self.m_scaleValue > self.SCALE_MAX_VALUE:
-            self.m_scaleValue = self.SCALE_MAX_VALUE
+            if self.m_scaleValue > self.SCALE_MAX_VALUE:
+                self.m_scaleValue = self.SCALE_MAX_VALUE
 
-        if self.m_scaleValue < self.SCALE_MIN_VALUE:
-            self.m_scaleValue = self.SCALE_MIN_VALUE
+            if self.m_scaleValue < self.SCALE_MIN_VALUE:
+                self.m_scaleValue = self.SCALE_MIN_VALUE
 
-        if self.m_rectPixmap.contains(event.pos()):
-            x = self.m_drawPoint.x() - (event.pos().x() - self.m_drawPoint.x()) / self.m_rectPixmap.width() * (
-                        self.width() * (self.m_scaleValue - oldScale))
-            y = self.m_drawPoint.y() - (event.pos().y() - self.m_drawPoint.y()) / self.m_rectPixmap.height() * (
-                        self.height() * (self.m_scaleValue - oldScale))
-            self.m_drawPoint = QPointF(x, y)
-        else:
-            x = self.m_drawPoint.x() - (self.width() * (self.m_scaleValue - oldScale)) / 2
-            y = self.m_drawPoint.y() - (self.height() * (self.m_scaleValue - oldScale)) / 2
-            self.m_drawPoint = QPointF(x, y)
-        self.update()
+            if self.m_rectPixmap.contains(event.pos()):
+                x = self.m_drawPoint.x() - (event.pos().x() - self.m_drawPoint.x()) / self.m_rectPixmap.width() * (
+                            self.width() * (self.m_scaleValue - oldScale))
+                y = self.m_drawPoint.y() - (event.pos().y() - self.m_drawPoint.y()) / self.m_rectPixmap.height() * (
+                            self.height() * (self.m_scaleValue - oldScale))
+                self.m_drawPoint = QPointF(x, y)
+            else:
+                x = self.m_drawPoint.x() - (self.width() * (self.m_scaleValue - oldScale)) / 2
+                y = self.m_drawPoint.y() - (self.height() * (self.m_scaleValue - oldScale)) / 2
+                self.m_drawPoint = QPointF(x, y)
+            self.update()
 
     def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.scale(self.window_width / self.pixmap().width() * self.m_scaleValue,
-                      self.window_height / self.pixmap().height() * self.m_scaleValue)
-        painter.drawPixmap(self.m_drawPoint, self.pixmap())
-        # super().paintEvent(event)  # parent for show background
-        # if self.scaleX != 0 and self.scaleY != 0:
-        #     painter_brush = QPainter()
-        #     painter_brush.begin(self)
-        #     painter_brush.setPen(QPen(Qt.green, 4))
-        #     if self.paint_flag:
-        #         for i in range(len(self.q_points)):
-        #             painter_brush.drawPoints(self.q_points[i])
-        #             point_coordination = "(" + str(int(self.points[i][0])) + "," + str(int(self.points[i][1])) + ")"
-        #             painter_brush.drawText(self.q_points[i], point_coordination)
-        #     else:
-        #         return
+        if self.add_new_bbox2d_flag:
+            super().paintEvent(event)
+            if self.scaleX != 0 and self.scaleY != 0:
+                painter_brush = QPainter()
+                painter_brush.begin(self)
+                painter_brush.setPen(QPen(Qt.red, 2, Qt.SolidLine))
+                # point_lt_coordination = "(" + str(int(self.q_strat_point[i].x())) + "," + str(int(self.q_strat_point[i].y())) + ")"
+                # painter_brush.drawText(self.q_strat_point[i], point_lt_coordination)
+                # point_br_coordination = "(" + str(int(self.q_end_point[i].x())) + "," + str(int(self.q_end_point[i].y())) + ")"
+                # painter_brush.drawText(self.q_end_point[i], point_br_coordination)
+                # rect = QRect(self.q_start_point, self.q_end_point)
+                # painter_brush.drawRect(rect)
+                if self.q_start_point is not None and self.q_end_point is not None:
+                    painter_brush.drawRect(self.q_start_point.x(), self.q_start_point.y(),
+                                           self.q_end_point.x() - self.q_start_point.x(),
+                                           self.q_end_point.y() - self.q_start_point.y())
+                else:
+                    pass
+                for i in range(len(self.q_bbox2d)):
+                    painter_brush.drawRect(self.q_bbox2d[i])
+                if self.show_cursor:
+                    painter_brush.setPen(QPen(Qt.white, 1, Qt.SolidLine))
+                    painter_brush.drawLine(self.pos.x(), 0, self.pos.x(), self.window_height)
+                    painter_brush.drawLine(0, self.pos.y(), self.window_width, self.pos.y())
+        elif self.keypoint_flag:
+            super().paintEvent(event)  # parent for show background
+            if self.scaleX != 0 and self.scaleY != 0:
+                painter_brush = QPainter()
+                painter_brush.begin(self)
+                painter_brush.setPen(QPen(Qt.green, 4))
+                if self.paint_flag:
+                    for i in range(len(self.q_points)):
+                        painter_brush.drawPoints(self.q_points[i])
+                        point_coordination = "(" + str(int(self.points[i][0])) + "," + str(int(self.points[i][1])) + ")"
+                        painter_brush.drawText(self.q_points[i], point_coordination)
+                else:
+                    return
+        else:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform)
+            painter.scale(self.window_width / self.pixmap().width() * self.m_scaleValue,
+                          self.window_height / self.pixmap().height() * self.m_scaleValue)
+            painter.drawPixmap(self.m_drawPoint, self.pixmap())
 
     def resizeEvent(self, event):
-        super(MyLabel, self).resizeEvent(event)
-        self.m_rectPixmap = QRectF(self.pixmap().rect())
-        self.m_rectPixmap.setWidth(self.window_width / self.m_rectPixmap.width() * self.m_scaleValue)
-        self.m_rectPixmap.setHeight(self.window_height / self.m_rectPixmap.height() * self.m_scaleValue)
-        self.m_drawPoint = QPointF(0, 0)
+        if self.add_new_bbox2d_flag:
+            pass
+        else:
+            super(MyLabel, self).resizeEvent(event)
+            self.m_rectPixmap = QRectF(self.pixmap().rect())
+            self.m_rectPixmap.setWidth(self.window_width / self.m_rectPixmap.width() * self.m_scaleValue)
+            self.m_rectPixmap.setHeight(self.window_height / self.m_rectPixmap.height() * self.m_scaleValue)
+            self.m_drawPoint = QPointF(0, 0)
 
 
 class Main(QMainWindow, Ui_MainWindow):
@@ -142,6 +259,8 @@ class Main(QMainWindow, Ui_MainWindow):
         self.mode = None
         self.pre_anno_dir = None
         self.pedes_mode = False
+
+        self.add_new_bbox2d_flag = False
 
         self.perspective = "right"
         if self.perspective == "right":
@@ -170,7 +289,7 @@ class Main(QMainWindow, Ui_MainWindow):
         self.all_vehicle_rots = []  # add vehicle rotations
         self.all_perspective = []
         self.all_base_point = []
-        self.all_3dbbox_3dvertex =[]
+        self.all_3dbbox_3dvertex = []
         self.all_vehicle_location = []
         self.all_vehicle_location_3d = []  # add vehicle center (m)
         self.all_veh_conf = []
@@ -276,6 +395,7 @@ class Main(QMainWindow, Ui_MainWindow):
     def choose_img_folder(self):
         """ choose annotation folder """
         self.pedes_mode = self.actionpedes.isChecked()
+        self.label_ImageDisplay.keypoint_flag = self.actionkeypoint_only.isChecked()
         self.list_file_path = []
         self.str_folder_path = QFileDialog.getExistingDirectory(self, "Choose Folder", os.getcwd())
         # support chinese path
@@ -355,7 +475,12 @@ class Main(QMainWindow, Ui_MainWindow):
 
     def listview_doubleclick_slot(self, QModelIndex):
         """ double-click to do object detection, and load calib information"""
+        idx = 0
+
         self.pedes_mode = self.actionpedes.isChecked()
+        self.label_ImageDisplay.keypoint_flag = self.actionkeypoint_only.isChecked()
+        self.pushButton_add_new_bbox2d.setEnabled(True)
+        self.pushButton_update_new_bbox2d.setEnabled(False)
 
         self.all_veh_2dbbox.clear()
         self.all_3dbbox_2dvertex.clear()
@@ -396,10 +521,10 @@ class Main(QMainWindow, Ui_MainWindow):
 
         # load annotation files
         # if not exists, load img to detection
-        if self.pedes_mode:
-            self.select_file_xml = self.select_file.split('.')[0] + '_sup.xml'
-        else:
-            self.select_file_xml = self.select_file.split('.')[0] + '.xml'
+        # if self.pedes_mode:
+        #     self.select_file_xml = self.select_file.split('.')[0] + '_sup.xml'
+        # else:
+        self.select_file_xml = self.select_file.split('.')[0] + '.xml'
         vehsize_lines = []  # for listview
         if os.path.exists(self.select_file_xml):
             tree = ET.parse(self.select_file_xml)
@@ -408,7 +533,6 @@ class Main(QMainWindow, Ui_MainWindow):
             box_nums = len(tree.findall("object"))
             tp_veh_key_point_data = np.zeros((box_nums, 2*self.key_point_nums))
             # box
-            idx = 0
             for id, obj in enumerate(root.iter('object')):
                 # 2、vehicle type (0，1，2)
                 veh_type_data = obj.find('type').text
@@ -458,7 +582,7 @@ class Main(QMainWindow, Ui_MainWindow):
                             veh_rot_data = float(obj.find('veh_angle').text)
                             self.all_vehicle_rots.append(veh_rot_data)
                         else:
-                            self.all_vehicle_rots.append(0.0)
+                            self.all_vehicle_rots.append(180.0)
 
                     # 6、view (left, right)
                     veh_view_data = obj.find('perspective').text
@@ -508,7 +632,7 @@ class Main(QMainWindow, Ui_MainWindow):
                     else:
                         left, top, right, bottom = int(bbox2d_data[0]), int(bbox2d_data[1]), int(bbox2d_data[0]) + int(bbox2d_data[2]), int(bbox2d_data[1]) + int(bbox2d_data[3])
 
-                    cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
+                    cv.rectangle(self.frame, (left, top), (right, bottom), (0, 128, 255), 3)
                     label = '%s:%.2f-%s' % (veh_type_data.lower(), 1.00, str(idx + 1))
 
                     # Display the label at the top of the bounding box
@@ -535,40 +659,54 @@ class Main(QMainWindow, Ui_MainWindow):
 
             self.all_key_points = tp_veh_key_point_data.tolist()
             self.show_img_in_label(self.label_ImageDisplay, self.frame)
-        elif self.pre_anno_dir is not None:
+        if self.pre_anno_dir is not None and self.pedes_mode:
             pre_anno_path = os.path.join(self.pre_anno_dir, self.select_file.split("/")[-1][:-4] + "_bbox2d.txt")
             with open(pre_anno_path, "r", encoding="utf-8") as f:
                 pre_annos = f.readlines()
-            idx = 0
             for pre_anno in pre_annos:
                 pre_anno = pre_anno.strip("\n").split(" ")
                 cls_name = str(pre_anno[0])
-                score = float(pre_anno[1])
-                left, top, right, bottom = np.array(pre_anno[2:], dtype=np.int)
+                if cls_name == "Non-motor" or cls_name == "Pedestrian":
+                    score = float(pre_anno[1])
+                    left, top, right, bottom = np.array(pre_anno[2:], dtype=np.int)
 
-                self.list_box.append([left, top, right - left, bottom - top])
-                self.list_type.append(cls_name)
-                self.list_conf.append(score)
+                    self.list_box.append([left, top, right - left, bottom - top])
+                    self.list_type.append(cls_name)
+                    self.list_conf.append(score)
 
-                # draw 2D box
-                cv.rectangle(self.frame, (left, top), (right, bottom), (0, 0, 255), 3)
-                label = '%s:%.2f-%s' % (cls_name, score, str(idx + 1))
+                    self.all_veh_2dbbox.append([left, top, right - left, bottom - top])
+                    self.all_vehicle_type.append(cls_name)
+                    self.all_perspective.append("left")
+                    self.all_base_point.append([left, bottom])
+                    self.all_vehicle_size.append(veh_size_dict[cls_name])
+                    self.all_vehicle_rots.append(180.0)
+                    self.all_3dbbox_2dvertex.append(np.zeros((1, 16)))
+                    self.all_3dbbox_3dvertex.append(np.zeros((1, 24)))
+                    self.all_vehicle_location_3d.append(np.zeros((1, 3)))
+                    self.all_vehicle_location.append(np.zeros((1, 2)))
+                    self.all_veh_conf.append(score)
 
-                # Display the label at the top of the bounding box
-                # display the idx of each object
-                labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                top = max(top, labelSize[1])
-                cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
-                             (left + round(1.5 * labelSize[0]), top + baseLine),
-                             (255, 255, 255), cv.FILLED)
-                cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+                    # draw 2D box
+                    cv.rectangle(self.frame, (left, top), (right, bottom), (0, 128, 255), 3)
+                    label = '%s:%.2f-%s' % (cls_name, score, str(idx + 1))
 
-                idx += 1
+                    # Display the label at the top of the bounding box
+                    # display the idx of each object
+                    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    top = max(top, labelSize[1])
+                    cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
+                                 (left + round(1.5 * labelSize[0]), top + baseLine),
+                                 (255, 255, 255), cv.FILLED)
+                    cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+
+                    idx += 1
+                else:
+                    continue
             self.textEdit_ObjNums.setText(str(idx))
             self.obj_num = int(self.textEdit_ObjNums.toPlainText())
 
             self.show_img_in_label(self.label_ImageDisplay, self.frame)
-        else:
+        if not os.path.exists(self.select_file_xml) and self.pre_anno_dir is None:
             # object detection
             self.thread.Init(self.frame)
             self.thread.send_detect_result.connect(self.image_label_display)
@@ -578,8 +716,8 @@ class Main(QMainWindow, Ui_MainWindow):
         """ choose annotation object """
         # if annotation file exists, revise can be done.
         if self.frame is not None:
+            self.obj_num = len(self.all_vehicle_type)
             if os.path.exists(self.select_file_xml):
-                self.obj_num = len(self.all_vehicle_size)
                 if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
                     self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # max obj num
                     self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value()]
@@ -611,10 +749,13 @@ class Main(QMainWindow, Ui_MainWindow):
                         self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
                     else:
                         self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
-                        self.dial_Bbox3D_Rot.setValue(self.rot)
-                    self.dial_Bbox3D_Rot.setValue(self.rot)
+                        self.dial_Bbox3D_Rot.setValue(int(self.rot))
+                    self.dial_Bbox3D_Rot.setValue(int(self.rot))
                     self.doubleSpinBox_Bbox3D_Rot.setValue(self.rot)
                     self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
+                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
+                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
+                    self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = self.centroid_2d
 
             else:  # make annotation from zero
                 try:
@@ -648,6 +789,69 @@ class Main(QMainWindow, Ui_MainWindow):
                 except:
                     QMessageBox.information(self, "Information", "Please choose one vehicle! ",
                                             QMessageBox.Yes | QMessageBox.No)
+
+    def add_new_bbox2d(self):
+        if self.frame is not None:
+            self.add_new_bbox2d_flag = True
+            self.label_ImageDisplay.add_new_bbox2d_flag = True
+            self.label_ImageDisplay.setCursor(Qt.CrossCursor)
+            self.pushButton_add_new_bbox2d.setEnabled(False)
+            self.label_ImageDisplay.show_cursor = True
+            self.pushButton_update_new_bbox2d.setEnabled(True)
+
+    def cancel_add_new_bbox2d(self):
+        self.pushButton_add_new_bbox2d.setEnabled(True)
+        self.add_new_bbox2d_flag = False
+        self.label_ImageDisplay.add_new_bbox2d_flag = False
+        self.label_ImageDisplay.unsetCursor()
+        self.label_ImageDisplay.show_cursor = False
+
+    def update_new_bbox2d(self):
+        if self.frame is not None:
+            base_num = len(self.all_vehicle_type)
+            if len(self.label_ImageDisplay.bbox2d) > 0:
+                self.all_veh_2dbbox.extend(self.label_ImageDisplay.bbox2d)
+                self.all_vehicle_type.extend(self.label_ImageDisplay.types)
+                self.all_perspective.extend(["left"] * len(self.label_ImageDisplay.bbox2d))
+                self.all_base_point.extend(self.label_ImageDisplay.base_point)
+                self.all_vehicle_size.extend(self.label_ImageDisplay.veh_size)
+                self.all_vehicle_rots.extend([180.0] * len(self.label_ImageDisplay.bbox2d))
+                self.all_3dbbox_2dvertex.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 16)))
+                self.all_3dbbox_3dvertex.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 24)))
+                self.all_vehicle_location_3d.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 3)))
+                self.all_vehicle_location.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 2)))
+                self.all_veh_conf.extend([1.0])
+                for idx, box in enumerate(self.label_ImageDisplay.bbox2d):
+                    left, top, right, bottom = int(box[0]), int(box[1]), \
+                                               int(box[0]) + int(box[2]), \
+                                               int(box[1]) + int(box[3])
+
+                    cv.rectangle(self.frame, (left, top), (right, bottom), (0, 128, 255), 3)
+                    label = '%s:%.2f-%s' % (self.label_ImageDisplay.types[idx], 1.00, str(base_num + idx + 1))
+
+                    # Display the label at the top of the bounding box
+                    # display the idx of each object
+                    labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    top = max(top, labelSize[1])
+                    cv.rectangle(self.frame, (left, top - round(1.5 * labelSize[1])),
+                                 (left + round(1.5 * labelSize[0]), top + baseLine),
+                                 (255, 255, 255), cv.FILLED)
+                    cv.putText(self.frame, label, (left, top), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 1)
+                self.show_img_in_label(self.label_ImageDisplay, self.frame)
+                self.label_ImageDisplay.q_bbox2d.clear()
+                self.label_ImageDisplay.bbox2d.clear()
+                self.label_ImageDisplay.veh_size.clear()
+                self.label_ImageDisplay.types.clear()
+                self.label_ImageDisplay.q_bbox2d.clear()
+                self.label_ImageDisplay.base_point.clear()
+                self.label_ImageDisplay.q_start_point = None
+                self.label_ImageDisplay.q_end_point = None
+                self.label_ImageDisplay.update()
+                self.textEdit_ObjNums.setText(str(len(self.all_vehicle_type)))
+                self.label_ImageDisplay.add_new_bbox2d_flag = False
+                self.pushButton_add_new_bbox2d.setEnabled(True)
+                self.label_ImageDisplay.unsetCursor()
+                self.label_ImageDisplay.show_cursor = False
 
     def radio_bp_left(self):
         """ choose base point: left bottom """
@@ -770,10 +974,10 @@ class Main(QMainWindow, Ui_MainWindow):
             if self.all_3dbbox_2dvertex:
                 # save annotation img
                 cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
-                if self.pre_anno_dir is not None:
-                    xml_path = self.select_file[0:len(self.select_file)-4] + "_sup.xml"
-                else:
-                    xml_path = self.select_file[0:len(self.select_file) - 4] + ".xml"
+                # if self.pre_anno_dir is not None:
+                #     xml_path = self.select_file[0:len(self.select_file)-4] + "_sup.xml"
+                # else:
+                xml_path = self.select_file[0:len(self.select_file) - 4] + ".xml"
                 save3dbbox_result(self.mode, xml_path, self.select_file, self.calib_file_path, self.frame, self.all_veh_2dbbox, self.all_vehicle_type, self.all_3dbbox_2dvertex,
                 self.all_vehicle_size, self.all_vehicle_rots, self.all_vehicle_location_3d, self.all_perspective, self.all_base_point, self.all_3dbbox_3dvertex, self.all_vehicle_location, self.all_key_points, self.actionkeypoint_only.isChecked())
             else:
@@ -809,7 +1013,7 @@ class Main(QMainWindow, Ui_MainWindow):
                     left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
                         self.list_box[i][0]) + int(
                         self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
-                    cv.rectangle(frame_copy_, (left, top), (right, bottom), (0, 0, 255), 3)
+                    cv.rectangle(frame_copy_, (left, top), (right, bottom), (0, 128, 255), 3)
                     label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
 
                     # Display the label at the top of the bounding box
@@ -830,7 +1034,7 @@ class Main(QMainWindow, Ui_MainWindow):
                     left, top, right, bottom = int(self.list_box[i][0]), int(self.list_box[i][1]), int(
                         self.list_box[i][0]) + int(
                         self.list_box[i][2]), int(self.list_box[i][1]) + int(self.list_box[i][3])
-                    cv.rectangle(self.frame_copy, (left, top), (right, bottom), (0, 0, 255), 3)
+                    cv.rectangle(self.frame_copy, (left, top), (right, bottom), (0, 128, 255), 3)
                     label = '%s:%.2f' % (self.list_type[i].lower(), self.list_conf[i])
 
                     # Display the label at the top of the bounding box

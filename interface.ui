@@ -144,10 +144,10 @@
               <bool>false</bool>
              </property>
              <property name="minimum">
-              <number>-200</number>
+              <number>-400</number>
              </property>
              <property name="maximum">
-              <number>200</number>
+              <number>400</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -160,10 +160,10 @@
            <item>
             <widget class="QSlider" name="verticalSlider_BasePointAdj_UD">
              <property name="minimum">
-              <number>-50</number>
+              <number>-200</number>
              </property>
              <property name="maximum">
-              <number>50</number>
+              <number>200</number>
              </property>
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -218,7 +218,7 @@
            <rect>
             <x>10</x>
             <y>45</y>
-            <width>331</width>
+            <width>301</width>
             <height>23</height>
            </rect>
           </property>
@@ -341,7 +341,7 @@
            <rect>
             <x>10</x>
             <y>20</y>
-            <width>352</width>
+            <width>271</width>
             <height>21</height>
            </rect>
           </property>
@@ -465,10 +465,10 @@
               <number>5</number>
              </property>
              <property name="value">
-              <number>180</number>
+              <number>0</number>
              </property>
              <property name="sliderPosition">
-              <number>180</number>
+              <number>0</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -499,11 +499,53 @@
               <double>0.100000000000000</double>
              </property>
              <property name="value">
-              <double>180.000000000000000</double>
+              <double>0.000000000000000</double>
              </property>
             </widget>
            </item>
           </layout>
+         </widget>
+         <widget class="QPushButton" name="pushButton_add_new_bbox2d">
+          <property name="geometry">
+           <rect>
+            <x>320</x>
+            <y>10</y>
+            <width>111</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>ADD 2D Bbox</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="pushButton_update_new_bbox2d">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="geometry">
+           <rect>
+            <x>320</x>
+            <y>70</y>
+            <width>111</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>UPDATE 2D Bbox</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="pushButton_cancel_add_new_bbox2d">
+          <property name="geometry">
+           <rect>
+            <x>320</x>
+            <y>43</y>
+            <width>111</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>CANCEL ADD</string>
+          </property>
          </widget>
         </widget>
        </item>
@@ -655,7 +697,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1843</x>
-     <y>491</y>
+     <y>485</y>
     </hint>
     <hint type="destinationlabel">
      <x>826</x>
@@ -670,8 +712,8 @@
    <slot>slider_bp_adjust_lr()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1788</x>
-     <y>192</y>
+     <x>1792</x>
+     <y>188</y>
     </hint>
     <hint type="destinationlabel">
      <x>827</x>
@@ -687,7 +729,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1822</x>
-     <y>221</y>
+     <y>218</y>
     </hint>
     <hint type="destinationlabel">
      <x>1179</x>
@@ -703,7 +745,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1822</x>
-     <y>262</y>
+     <y>257</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -718,8 +760,8 @@
    <slot>spin_cur_anno_order()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1608</x>
-     <y>104</y>
+     <x>1563</x>
+     <y>100</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -734,8 +776,8 @@
    <slot>combo_cur_anno_type()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1732</x>
-     <y>104</y>
+     <x>1702</x>
+     <y>100</y>
     </hint>
     <hint type="destinationlabel">
      <x>1180</x>
@@ -750,8 +792,8 @@
    <slot>radio_bp_left()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1589</x>
-     <y>130</y>
+     <x>1578</x>
+     <y>125</y>
     </hint>
     <hint type="destinationlabel">
      <x>823</x>
@@ -767,7 +809,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1663</x>
-     <y>130</y>
+     <y>125</y>
     </hint>
     <hint type="destinationlabel">
      <x>1179</x>
@@ -782,8 +824,8 @@
    <slot>spind_3dbbox_length()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1538</x>
-     <y>455</y>
+     <x>1539</x>
+     <y>452</y>
     </hint>
     <hint type="destinationlabel">
      <x>825</x>
@@ -799,7 +841,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1680</x>
-     <y>455</y>
+     <y>452</y>
     </hint>
     <hint type="destinationlabel">
      <x>955</x>
@@ -815,7 +857,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1821</x>
-     <y>455</y>
+     <y>452</y>
     </hint>
     <hint type="destinationlabel">
      <x>1169</x>
@@ -831,7 +873,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1844</x>
-     <y>947</y>
+     <y>943</y>
     </hint>
     <hint type="destinationlabel">
      <x>822</x>
@@ -847,7 +889,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1743</x>
-     <y>491</y>
+     <y>485</y>
     </hint>
     <hint type="destinationlabel">
      <x>822</x>
@@ -862,8 +904,8 @@
    <slot>clear_single_annotation()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1643</x>
-     <y>491</y>
+     <x>1644</x>
+     <y>485</y>
     </hint>
     <hint type="destinationlabel">
      <x>1019</x>
@@ -911,7 +953,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1844</x>
-     <y>641</y>
+     <y>638</y>
     </hint>
     <hint type="destinationlabel">
      <x>1385</x>
@@ -927,7 +969,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1844</x>
-     <y>641</y>
+     <y>638</y>
     </hint>
     <hint type="destinationlabel">
      <x>1385</x>
@@ -942,8 +984,8 @@
    <slot>dial_box_rot_adjust()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1709</x>
-     <y>400</y>
+     <x>1685</x>
+     <y>401</y>
     </hint>
     <hint type="destinationlabel">
      <x>1580</x>
@@ -959,7 +1001,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>1822</x>
-     <y>350</y>
+     <y>346</y>
     </hint>
     <hint type="destinationlabel">
      <x>1578</x>
@@ -980,6 +1022,54 @@
     <hint type="destinationlabel">
      <x>936</x>
      <y>492</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_add_new_bbox2d</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>add_new_bbox2d()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1770</x>
+     <y>75</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1856</x>
+     <y>83</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_update_new_bbox2d</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>update_new_bbox2d()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1810</x>
+     <y>105</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1857</x>
+     <y>120</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_cancel_add_new_bbox2d</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>cancel_add_new_bbox2d()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1809</x>
+     <y>90</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1860</x>
+     <y>62</y>
     </hint>
    </hints>
   </connection>
@@ -1013,5 +1103,8 @@
   <slot>dial_box_rot_adjust()</slot>
   <slot>spind_3dbbox_rot()</slot>
   <slot>config_pretrain_model_3d()</slot>
+  <slot>add_new_bbox2d()</slot>
+  <slot>update_new_bbox2d()</slot>
+  <slot>cancel_add_new_bbox2d()</slot>
  </slots>
 </ui>
