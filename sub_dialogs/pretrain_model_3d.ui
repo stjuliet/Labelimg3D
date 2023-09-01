@@ -7,11 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>871</width>
-    <height>382</height>
+    <height>369</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>config pretrain model 3d</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QWidget" name="layoutWidget">
@@ -202,7 +202,7 @@
      <x>0</x>
      <y>0</y>
      <width>871</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>

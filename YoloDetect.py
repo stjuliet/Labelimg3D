@@ -40,7 +40,7 @@ class YoloDetect(QThread):
         # Get the names of all the layers in the network
         layersNames = net.getLayerNames()
         # Get the names of the output layers, i.e. the layers with unconnected outputs
-        return [layersNames[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+        return [layersNames[i - 1] for i in net.getUnconnectedOutLayers()]
 
     def drawPred(self, frame, idx, classes, classId, conf, left, top, right, bottom):
         # Draw a bounding box.
@@ -104,14 +104,14 @@ class YoloDetect(QThread):
         cnt = 0
         for i in indices:
             cnt += 1
-            i = i[0]
+            # i = i[0]
             box = boxes[i]
             left = box[0]
             top = box[1]
             width = box[2]
             height = box[3]
             nms_boxes.append([left, top, width, height])
-            nms_list_type.append(list_type[i])
+            nms_list_type.append(list_type[i].capitalize())
             nms_list_conf.append(confidences[i])
             self.drawPred(frame, cnt, classes, classIds[i], confidences[i], left, top, left + width, top + height)
         return nms_boxes, nms_list_type, nms_list_conf

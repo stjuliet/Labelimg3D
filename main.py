@@ -22,7 +22,7 @@ classes = ["Car", "Truck", "Bus", "Vehicle", "Non-motor", "Pedestrian"]
 veh_size_dict = {"Car": [4.5, 1.8, 1.5],
                  "Truck": [6.0, 2.2, 2.4],
                  "Bus": [10.0, 2.5, 2.6],
-                 "Vehicle": None,
+                 "Vehicle": [4.5, 1.8, 1.5],
                  "Non-motor": [1.8, 0.8, 1.5],
                  "Pedestrian": [0.6, 0.7, 1.5]}
 
@@ -58,6 +58,7 @@ class MyLabel(QLabel):
         self.bbox2d = []
         self.types = []
         self.base_point = []
+        self.centroid = []
         self.veh_size = []
         self.q_bbox2d = []
         self.q_start_point = None  # QPoint for show
@@ -78,6 +79,7 @@ class MyLabel(QLabel):
                         self.q_bbox2d.pop(-1)
                         self.types.pop(-1)
                         self.base_point.pop(-1)
+                        self.centroid.pop(-1)
                         self.veh_size.pop(-1)
                         self.q_start_point = None
                         self.q_end_point = None
@@ -130,14 +132,16 @@ class MyLabel(QLabel):
         if self.add_new_bbox2d_flag:
             if event.button() == Qt.LeftButton:
                 self.flag = False
-                self.bbox2d.append([int(self.q_start_point.x() * self.scaleX / self.m_scaleValue), int(self.q_start_point.y() * self.scaleY / self.m_scaleValue),
-                                    int(abs(self.q_end_point.x() - self.q_start_point.x()) * self.scaleX / self.m_scaleValue),
-                                    int(abs(self.q_end_point.y() - self.q_start_point.y()) * self.scaleY / self.m_scaleValue)])
+                self.bbox2d.append([int(self.q_start_point.x() * self.scaleX), int(self.q_start_point.y() * self.scaleY),
+                                    int(abs(self.q_end_point.x() - self.q_start_point.x()) * self.scaleX),
+                                    int(abs(self.q_end_point.y() - self.q_start_point.y()) * self.scaleY)])
                 self.q_bbox2d.append(QRect(self.q_start_point.x(), self.q_start_point.y(),
                                     abs(self.q_end_point.x() - self.q_start_point.x()),
                                     abs(self.q_end_point.y() - self.q_start_point.y())))
-                self.base_point.append([int(self.q_start_point.x() * self.scaleX / self.m_scaleValue),
-                                        int(self.q_end_point.y() * self.scaleY / self.m_scaleValue)])  # fixed bugs
+                self.base_point.append([int(self.q_start_point.x() * self.scaleX),
+                                        int(self.q_end_point.y() * self.scaleY)])  # fixed bugs
+                self.centroid.append([int(((self.q_end_point.x() + self.q_start_point.x()) / 2) * self.scaleX),
+                                      int(((self.q_end_point.y() + self.q_start_point.y()) / 2) * self.scaleY)])
 
                 q_dialog, dialog = QDialog(), dialog_bbox2d()
                 # add classes
@@ -156,6 +160,7 @@ class MyLabel(QLabel):
                     self.q_bbox2d.pop(-1)
                     # self.base_point.pop(-1)
                     # self.veh_size.pop(-1)
+                    # self.centroid.pop(-1)
                     self.q_start_point = None
                     self.q_end_point = None
                     self.update()
@@ -334,7 +339,8 @@ class Main(QMainWindow, Ui_MainWindow):
             self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox_dairv2x(self.m_trans, self.veh_centroid_3d, self.l, self.w, self.h, self.rot)
             drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
         else:
-            self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_base_point, self.veh_turple_vp, self.l, self.w, self.h, self.rot)
+            self.list_3dbbox_2dvertex, self.list_3dbbox_3dvertex, self.centroid_2d = cal_3dbbox(self.perspective, self.m_trans, self.veh_centroid, self.l, self.w, self.h, self.rot)
+            # frame = cv.circle(frame.copy(), self.veh_base_point, 50, (255, 0, 0), 5, -1)
             drawbox_img = self.paint(frame.copy(), self.list_3dbbox_2dvertex, self.centroid_2d)
         if self.label_ImageDisplay.points:
             self.key_points = np.array(self.label_ImageDisplay.points).flatten().tolist()  # 每次绘制3d box时，保存拉平的关键点对
@@ -579,7 +585,10 @@ class Main(QMainWindow, Ui_MainWindow):
                     if self.mode == "o":
                         # vehicle rot
                         if obj.find('veh_angle') is not None:
-                            veh_rot_data = float(obj.find('veh_angle').text)
+                            if obj.find('veh_angle').text.startswith("["):
+                                veh_rot_data = float(obj.find('veh_angle').text[1:-1])
+                            else:
+                                veh_rot_data = float(obj.find('veh_angle').text)
                             self.all_vehicle_rots.append(veh_rot_data)
                         else:
                             self.all_vehicle_rots.append(180.0)
@@ -590,6 +599,8 @@ class Main(QMainWindow, Ui_MainWindow):
                     # 7、vehicle base point (int)
                     veh_base_point_data = obj.find('base_point').text.split()
                     veh_base_point_data = [dtype(float(base_point)) for base_point in veh_base_point_data]
+                    # load annotations
+                    # veh_base_point_data = [veh_vertex_data[2], veh_vertex_data[3]]
                     self.all_base_point.append(veh_base_point_data)
 
                     # veh_vertex_data -> (tuple)
@@ -599,8 +610,8 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_3dbbox_2dvertex[idx] = tp_veh_vertex_data
 
                     tp_veh_3dvertex_data = []
-                    for i in range(0, len(veh_3dvertex_data)-1, 2):
-                        tp_veh_3dvertex_data.append((veh_3dvertex_data[i], veh_3dvertex_data[i+1]))
+                    for i in range(0, len(veh_3dvertex_data)-2, 3):
+                        tp_veh_3dvertex_data.append((veh_3dvertex_data[i], veh_3dvertex_data[i+1], veh_3dvertex_data[i+2]))
                     self.all_3dbbox_3dvertex[idx] = tp_veh_3dvertex_data
 
                     # veh_centre_data -> (tuple)
@@ -712,58 +723,74 @@ class Main(QMainWindow, Ui_MainWindow):
             self.thread.send_detect_result.connect(self.image_label_display)
             self.thread.start()
 
+    def limit_spin_box_value(self, value):
+        if value > self.obj_num:
+            value = 1
+        elif value < 1:
+            value = self.obj_num
+        else:
+            pass
+        return value
+
     def spin_cur_anno_order(self):
         """ choose annotation object """
         # if annotation file exists, revise can be done.
         if self.frame is not None:
-            self.obj_num = len(self.all_vehicle_type)
+            self.spinBox_CurAnnNum.setValue(self.limit_spin_box_value(self.spinBox_CurAnnNum.value()))  # roll
             if os.path.exists(self.select_file_xml):
-                if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
-                    self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # max obj num
-                    self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value()]
-                    self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value()]
+                self.obj_num = len(self.all_vehicle_type)
+                if (self.spinBox_CurAnnNum.value()) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 1:
+                    # self.spinBox_CurAnnNum.setMaximum(self.obj_num)  # max obj num
+                    self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value() - 1]
+                    self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value() - 1]
                     self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
 
-                    self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value()]
-                    self.base_point = self.all_base_point[self.spinBox_CurAnnNum.value()]
+                    self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value() - 1]
+                    if self.perspective == "left":
+                        self.radioButton_BasePointLeft.setChecked(True)
+                    else:
+                        self.radioButton_BasePointRight.setChecked(True)
+                    self.centroid = self.all_vehicle_location[self.spinBox_CurAnnNum.value() - 1]
+                    self.veh_centroid = self.centroid
+                    self.base_point = self.all_base_point[self.spinBox_CurAnnNum.value() - 1]
                     self.veh_base_point = self.base_point
 
                     if self.mode == "d":
-                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0]
-                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1]
-                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2]
+                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][0]
+                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][1]
+                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][2]
                         self.doubleSpinBox_Bbox3D_Length.setValue(self.l)
                         self.doubleSpinBox_Bbox3D_Width.setValue(self.w)
                         self.doubleSpinBox_Bbox3D_Height.setValue(self.h)
                     else:
-                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][0] * 1000
-                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][1] * 1000
-                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value()][2] * 1000
+                        self.l = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][0] * 1000
+                        self.w = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][1] * 1000
+                        self.h = self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1][2] * 1000
                         self.doubleSpinBox_Bbox3D_Length.setValue(self.l / 1000)
                         self.doubleSpinBox_Bbox3D_Width.setValue(self.w / 1000)
                         self.doubleSpinBox_Bbox3D_Height.setValue(self.h / 1000)
 
                     if self.mode == "d":
-                        self.centriod_3d = self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value()]
+                        self.centriod_3d = self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value() - 1]
                         self.veh_centroid_3d = self.centriod_3d
-                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
+                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value() - 1]
                     else:
-                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value()]
+                        self.rot = self.all_vehicle_rots[self.spinBox_CurAnnNum.value() - 1]
                         self.dial_Bbox3D_Rot.setValue(int(self.rot))
                     self.dial_Bbox3D_Rot.setValue(int(self.rot))
                     self.doubleSpinBox_Bbox3D_Rot.setValue(self.rot)
                     self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
-                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
-                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
-                    self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = self.centroid_2d
+                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value() - 1] = self.list_3dbbox_2dvertex
+                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value() - 1] = self.list_3dbbox_3dvertex
+                    self.all_vehicle_location[self.spinBox_CurAnnNum.value() - 1] = self.centroid_2d
 
             else:  # make annotation from zero
                 try:
-                    if (self.spinBox_CurAnnNum.value() + 1) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 0:
-                        self.spinBox_CurAnnNum.setMaximum(self.obj_num - 1)  # max obj num
-                        self.veh_box = self.list_box[self.spinBox_CurAnnNum.value()]
-                        self.veh_type = self.list_type[self.spinBox_CurAnnNum.value()]
-                        self.veh_conf = self.list_conf[self.spinBox_CurAnnNum.value()]
+                    if (self.spinBox_CurAnnNum.value()) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 1:
+                        # self.spinBox_CurAnnNum.setMaximum(self.obj_num)  # max obj num
+                        self.veh_box = self.list_box[self.spinBox_CurAnnNum.value() - 1]
+                        self.veh_type = self.list_type[self.spinBox_CurAnnNum.value() - 1]
+                        self.veh_conf = self.list_conf[self.spinBox_CurAnnNum.value() - 1]
                         self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
                         # reset slider
                         self.horizontalSlider_BasePointAdj_LR.setValue(0)
@@ -775,6 +802,14 @@ class Main(QMainWindow, Ui_MainWindow):
                         elif self.perspective == 'right':  # right
                             self.base_point = (self.veh_box[0] + self.veh_box[2], self.veh_box[1] + self.veh_box[3])
                             self.veh_base_point = self.base_point
+
+                        self.l = self.doubleSpinBox_Bbox3D_Length.value() * 1000
+                        self.w = self.doubleSpinBox_Bbox3D_Width.value() * 1000
+                        self.h = self.doubleSpinBox_Bbox3D_Height.value() * 1000
+                        self.rot = self.dial_Bbox3D_Rot.value()
+
+                        self.centroid = (self.veh_box[0] + self.veh_box[2] / 2, self.veh_box[1] + self.veh_box[3] / 2)
+                        self.veh_centroid = self.centroid
 
                         # key-point mode
                         if self.actionkeypoint_only.isChecked():
@@ -816,11 +851,11 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.all_base_point.extend(self.label_ImageDisplay.base_point)
                 self.all_vehicle_size.extend(self.label_ImageDisplay.veh_size)
                 self.all_vehicle_rots.extend([180.0] * len(self.label_ImageDisplay.bbox2d))
-                self.all_3dbbox_2dvertex.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 16)))
-                self.all_3dbbox_3dvertex.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 24)))
+                self.all_3dbbox_2dvertex.extend([[(0, 0) for _ in range(8)]] * len(self.label_ImageDisplay.bbox2d))
+                self.all_3dbbox_3dvertex.extend([[(0, 0, 0) for _ in range(8)]] * len(self.label_ImageDisplay.bbox2d))
                 self.all_vehicle_location_3d.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 3)))
-                self.all_vehicle_location.extend(np.zeros((len(self.label_ImageDisplay.bbox2d), 2)))
-                self.all_veh_conf.extend([1.0])
+                self.all_vehicle_location.extend(self.label_ImageDisplay.centroid)  # update centroid for draw 3d bbox
+                self.all_veh_conf.extend([1.0] * len(self.label_ImageDisplay.bbox2d))
                 for idx, box in enumerate(self.label_ImageDisplay.bbox2d):
                     left, top, right, bottom = int(box[0]), int(box[1]), \
                                                int(box[0]) + int(box[2]), \
@@ -844,10 +879,12 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.label_ImageDisplay.types.clear()
                 self.label_ImageDisplay.q_bbox2d.clear()
                 self.label_ImageDisplay.base_point.clear()
+                self.label_ImageDisplay.centroid.clear()
                 self.label_ImageDisplay.q_start_point = None
                 self.label_ImageDisplay.q_end_point = None
                 self.label_ImageDisplay.update()
                 self.textEdit_ObjNums.setText(str(len(self.all_vehicle_type)))
+                self.obj_num = len(self.all_vehicle_type)
                 self.label_ImageDisplay.add_new_bbox2d_flag = False
                 self.pushButton_add_new_bbox2d.setEnabled(True)
                 self.label_ImageDisplay.unsetCursor()
@@ -888,6 +925,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.veh_centroid_3d = (self.veh_centroid_3d[0], self.centriod_3d[1] - self.horizontalSlider_BasePointAdj_LR.value() / 100.0, self.veh_centroid_3d[2])
                 self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
             else:
+                self.veh_centroid = (self.centroid[0] + self.horizontalSlider_BasePointAdj_LR.value(), self.veh_centroid[1])
                 self.veh_base_point = (self.base_point[0] + self.horizontalSlider_BasePointAdj_LR.value(), self.veh_base_point[1])
                 self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
@@ -900,6 +938,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 self.veh_centroid_3d = (self.centriod_3d[0] - self.verticalSlider_BasePointAdj_UD.value() / 30.0, self.veh_centroid_3d[1], self.veh_centroid_3d[2])
                 self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
             else:
+                self.veh_centroid = (self.veh_centroid[0], self.centroid[1] + self.verticalSlider_BasePointAdj_UD.value())
                 self.veh_base_point = (self.veh_base_point[0], self.base_point[1] + self.verticalSlider_BasePointAdj_UD.value())
                 self.drawbox_img = self.draw_3dbox(self.frame, self.mode)
         except:
@@ -926,20 +965,20 @@ class Main(QMainWindow, Ui_MainWindow):
             if os.path.exists(self.select_file_xml):
                 self.frame = self.drawbox_img
                 if self.actionkeypoint_only.isChecked():
-                    self.all_key_points[self.spinBox_CurAnnNum.value()] = self.key_points
+                    self.all_key_points[self.spinBox_CurAnnNum.value() - 1] = self.key_points
                     self.label_ImageDisplay.points.clear()
                     self.label_ImageDisplay.q_points.clear()
                 else:
-                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_2dvertex
-                    self.all_vehicle_type[self.spinBox_CurAnnNum.value()] = self.comboBox_CurAnnType.currentText()
-                    self.all_vehicle_size[self.spinBox_CurAnnNum.value()] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(),self.doubleSpinBox_Bbox3D_Height.value()]
-                    self.all_vehicle_rots[self.spinBox_CurAnnNum.value()] = self.doubleSpinBox_Bbox3D_Rot.value()
-                    self.all_perspective[self.spinBox_CurAnnNum.value()] = self.perspective
-                    self.all_base_point[self.spinBox_CurAnnNum.value()] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
-                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value()] = self.list_3dbbox_3dvertex
-                    self.all_vehicle_location[self.spinBox_CurAnnNum.value()] = [self.centroid_2d[0], self.centroid_2d[1]]
+                    self.all_3dbbox_2dvertex[self.spinBox_CurAnnNum.value() - 1] = self.list_3dbbox_2dvertex
+                    self.all_vehicle_type[self.spinBox_CurAnnNum.value() - 1] = self.comboBox_CurAnnType.currentText()
+                    self.all_vehicle_size[self.spinBox_CurAnnNum.value() - 1] = [self.doubleSpinBox_Bbox3D_Length.value(), self.doubleSpinBox_Bbox3D_Width.value(), self.doubleSpinBox_Bbox3D_Height.value()]
+                    self.all_vehicle_rots[self.spinBox_CurAnnNum.value() - 1] = self.doubleSpinBox_Bbox3D_Rot.value()
+                    self.all_perspective[self.spinBox_CurAnnNum.value() - 1] = self.perspective
+                    self.all_base_point[self.spinBox_CurAnnNum.value() - 1] = [self.list_3dbbox_2dvertex[1][0], self.list_3dbbox_2dvertex[1][1]]  # 基准点p1
+                    self.all_3dbbox_3dvertex[self.spinBox_CurAnnNum.value() - 1] = self.list_3dbbox_3dvertex
+                    self.all_vehicle_location[self.spinBox_CurAnnNum.value() - 1] = [self.centroid_2d[0], self.centroid_2d[1]]
                     if self.mode == "d":
-                        self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value()] = self.veh_centroid_3d
+                        self.all_vehicle_location_3d[self.spinBox_CurAnnNum.value() - 1] = self.veh_centroid_3d
             else:
                 # if not clear, not duplicate, add can be done.
                 # if clear, all_list empty, save can not be done.
@@ -1026,7 +1065,7 @@ class Main(QMainWindow, Ui_MainWindow):
                 for i in range(len(self.all_vehicle_size)):  # list after clear
                     imgcopy = self.paint(frame_copy_, self.all_3dbbox_2dvertex[i], (self.all_vehicle_location[i][0], self.all_vehicle_location[i][1]))
                 self.frame = frame_copy_
-                self.spinBox_CurAnnNum.setValue(self.spinBox_CurAnnNum.value() - 1)
+                self.spinBox_CurAnnNum.setValue(self.spinBox_CurAnnNum.value())
                 self.show_img_in_label(self.label_ImageDisplay, frame_copy_)
             else:
                 for i in range(len(self.list_box)):

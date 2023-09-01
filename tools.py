@@ -152,48 +152,52 @@ def dashLine(img, p1, p2, color, thickness, interval):
         cv.line(img, plastBeg, p2, color, thickness)
 
 
-def cal_3dbbox(perspective, m_trans, veh_base_point, veh_turple_vp, l, w, h, rot):
+def cal_3dbbox(perspective, m_trans, veh_centroid, l, w, h, rot):
     """
     draw 3d box
     :param perspective:
     :param m_trans:
-    :param veh_base_point:
-    :param veh_turple_vp:
+    :param veh_centroid:
     :param l:
     :param w:
     :param h:
     :param rot:
     :return:
     """
-    veh_world_base_point = RDUVtoXYZ(m_trans, veh_base_point[0], veh_base_point[1], 0)
-    veh_world_vp = RDUVtoXYZ(m_trans, veh_turple_vp[0], veh_turple_vp[1], 0)
-    k0 = (veh_world_vp[1] - veh_world_base_point[1]) / (veh_world_vp[0] - veh_world_base_point[0] + 1e-8)
-    k1 = -1.0 / k0
-    dev_x0 = l / math.sqrt(1 + k0 * k0)  # length vector (+)
-    dev_y0 = k0 * dev_x0  # the same sign to k0
-    dev_x1 = w / math.sqrt(1 + k1 * k1)  # width vector (+)
-    dev_y1 = k1 * dev_x1  # opposite sign to K0
+    centroid_3d = RDUVtoXYZ(m_trans, veh_centroid[0], veh_centroid[1], h / 2)
+    # veh_world_vp = RDUVtoXYZ(m_trans, veh_turple_vp[0], veh_turple_vp[1], 0)
+    # k0 = (veh_world_vp[1] - veh_world_base_point[1]) / (veh_world_vp[0] - veh_world_base_point[0] + 1e-8)
+    # k1 = -1.0 / k0
+    # dev_x0 = l / math.sqrt(1 + k0 * k0)  # length vector (+)
+    # dev_y0 = k0 * dev_x0  # the same sign to k0
+    # dev_x1 = w / math.sqrt(1 + k1 * k1)  # width vector (+)
+    # dev_y1 = k1 * dev_x1  # opposite sign to K0
+    #
+    # if k0 > 0:  # tan < 90°
+    #     dev_x0 = - dev_x0
+    #     dev_y0 = - dev_y0
+    # else:
+    #     pass
 
-    if k0 > 0:  # tan < 90°
-        dev_x0 = - dev_x0
-        dev_y0 = - dev_y0
-    else:
-        pass
-
-    p1_3d = veh_world_base_point
-    p5_3d = (p1_3d[0], p1_3d[1], h)
+    pct_3d = centroid_3d
     if perspective == 'left':
-        p0_3d = (p1_3d[0] + dev_x1, p1_3d[1] + dev_y1, 0)  # width
-        centroid_3d = (p1_3d[0] + dev_x1 / 2 - dev_x0 / 2, p1_3d[1] + dev_y1 / 2 - dev_y0 / 2, h / 2)  # centroid
+        p0_3d = (pct_3d[0] + w / 2, pct_3d[1] - l / 2, pct_3d[2] - h / 2)  # width
+        p1_3d = (pct_3d[0] - w / 2, pct_3d[1] - l / 2, pct_3d[2] - h / 2)
+        p2_3d = (pct_3d[0] - w / 2, pct_3d[1] + l / 2, pct_3d[2] - h / 2)
+        p3_3d = (pct_3d[0] + w / 2, pct_3d[1] + l / 2, pct_3d[2] - h / 2)
+        p4_3d = (pct_3d[0] + w / 2, pct_3d[1] - l / 2, pct_3d[2] + h / 2)  # width
+        p5_3d = (pct_3d[0] - w / 2, pct_3d[1] - l / 2, pct_3d[2] + h / 2)
+        p6_3d = (pct_3d[0] - w / 2, pct_3d[1] + l / 2, pct_3d[2] + h / 2)
+        p7_3d = (pct_3d[0] + w / 2, pct_3d[1] + l / 2, pct_3d[2] + h / 2)
     else:  # right
-        p0_3d = (p1_3d[0] - dev_x1, p1_3d[1] - dev_y1, 0)  # width
-        centroid_3d = (p1_3d[0] - dev_x1 / 2 - dev_x0 / 2, p1_3d[1] - dev_y1 / 2 - dev_y0 / 2, h / 2)  # centroid
-
-    p2_3d = (p1_3d[0] - dev_x0, p1_3d[1] - dev_y0, 0)  # length
-    p3_3d = (p0_3d[0] - dev_x0, p0_3d[1] - dev_y0, 0)
-    p4_3d = (p0_3d[0], p0_3d[1], h)
-    p6_3d = (p2_3d[0], p2_3d[1], h)
-    p7_3d = (p3_3d[0], p3_3d[1], h)
+        p0_3d = (pct_3d[0] - w / 2, pct_3d[1] - l / 2, pct_3d[2] - h / 2)  # width
+        p1_3d = (pct_3d[0] + w / 2, pct_3d[1] - l / 2, pct_3d[2] - h / 2)
+        p2_3d = (pct_3d[0] + w / 2, pct_3d[1] + l / 2, pct_3d[2] - h / 2)
+        p3_3d = (pct_3d[0] - w / 2, pct_3d[1] + l / 2, pct_3d[2] - h / 2)
+        p4_3d = (pct_3d[0] - w / 2, pct_3d[1] - l / 2, pct_3d[2] + h / 2)  # width
+        p5_3d = (pct_3d[0] + w / 2, pct_3d[1] - l / 2, pct_3d[2] + h / 2)
+        p6_3d = (pct_3d[0] + w / 2, pct_3d[1] + l / 2, pct_3d[2] + h / 2)
+        p7_3d = (pct_3d[0] - w / 2, pct_3d[1] + l / 2, pct_3d[2] + h / 2)
 
     centroid_2d = RDXYZToUV(m_trans, centroid_3d[0], centroid_3d[1], centroid_3d[2])
     # list_3dbbox_3dvertex = [p0_3d, p1_3d, p2_3d, p3_3d, p4_3d, p5_3d, p6_3d, p7_3d]
@@ -258,6 +262,10 @@ def rotate_point(point_3d, centroid_3d, degree):
     :param: centroid_3d, [1, 3]
     :param: degree, need to be transferred to rad
     """
+    # if degree >= 180:
+    #     degree = degree - 180
+    # else:
+    #     degree = 180 - degree
     rot_rad = np.deg2rad(degree - 180)
     rot_matrix = np.array([np.cos(rot_rad), np.sin(rot_rad), -np.sin(rot_rad), np.cos(rot_rad)]).reshape(2, 2)
     rot_center = np.expand_dims(centroid_3d, 0).T
