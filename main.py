@@ -615,6 +615,8 @@ class Main(QMainWindow, Ui_MainWindow):
                         tp_veh_3dvertex_data.append((veh_3dvertex_data[i], veh_3dvertex_data[i+1], veh_3dvertex_data[i+2]))
                     self.all_3dbbox_3dvertex[idx] = tp_veh_3dvertex_data
 
+                    self.all_veh_conf.append(1.0)
+
                     # veh_centre_data -> (tuple)
                     tp_veh_centre_data = (dtype(veh_centre_data[0]), dtype(veh_centre_data[1]))
 
@@ -693,8 +695,8 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_base_point.append([left, bottom])
                     self.all_vehicle_size.append(veh_size_dict[cls_name])
                     self.all_vehicle_rots.append(180.0)
-                    self.all_3dbbox_2dvertex.append(np.zeros((1, 16)))
-                    self.all_3dbbox_3dvertex.append(np.zeros((1, 24)))
+                    self.all_3dbbox_2dvertex.append([(0, 0) for _ in range(8)])
+                    self.all_3dbbox_3dvertex.append([(0, 0, 0) for _ in range(8)])
                     self.all_vehicle_location_3d.append(np.zeros((1, 3)))
                     self.all_vehicle_location.append([(left + right) / 2, (top + bottom) / 2])
                     self.all_veh_conf.append(score)

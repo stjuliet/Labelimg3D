@@ -292,7 +292,7 @@ class Ui_MainWindow(object):
         self.actionpretrain_model_3d.setObjectName("actionpretrain_model_3d")
         self.actionpedes = QtWidgets.QAction(MainWindow)
         self.actionpedes.setCheckable(True)
-        self.actionpedes.setChecked(False)
+        self.actionpedes.setChecked(True)
         self.actionpedes.setObjectName("actionpedes")
         self.menuMenu.addAction(self.action_open_folder)
         self.menuRevise_Mode.addAction(self.actionkeypoint_only)
