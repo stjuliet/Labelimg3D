@@ -1,6 +1,8 @@
 .idea
 /__pycache__/
 main.spec
+*.exe
+
 /build/
 /dist/
 
@@ -22,3 +24,6 @@ main.spec
 /session20200616_cross_44090020120002005300_data_suprot/
 /session20200717_right_44010000001326340101_data_suprot/
 /session20200717_right_44010000001326340101_data_suprotbeifen/
+/session20200717_centerlight_44090220280019470000_data_suprot_fix/
+/session20200717_right_44010000001326340101_data_suprot_p4_fix/
+/session20210128_centerface_44090020070003000100_data_suprot_fix/

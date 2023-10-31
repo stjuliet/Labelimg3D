@@ -5,7 +5,7 @@ import sys
 from interface import *
 from dialog_vehicle_size import Ui_Dialog as dialog_vehsize
 from sub_dialogs.bbox2d_anno import Ui_Dialog as dialog_bbox2d
-from sub_dialogs.window_pretrain_model_3d import Main_Pretrain
+# from sub_dialogs.window_pretrain_model_3d import Main_Pretrain
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -304,13 +304,13 @@ class Main(QMainWindow, Ui_MainWindow):
         self.label_ImageDisplay = MyLabel(self.groupBox_ImageDisplay,
                                           self.label_ImageDisplay.width(),
                                           self.label_ImageDisplay.height())
-        self.label_ImageDisplay.setGeometry(QtCore.QRect(10, 20, 1351, 891))
+        self.label_ImageDisplay.setGeometry(QtCore.QRect(10, 20, 1091, 791))
 
         self.label_ImageDisplay.setScaledContents(True)
         self.label_ImageDisplay.setStyleSheet("QLabel{background-color:rgb(0,0,0);}")  # style sheet
 
         self.actionpretrain_model_3d.triggered.connect(self.config_pretrain_model_3d)
-        self.window_pretrain_model_3d = Main_Pretrain()
+        # self.window_pretrain_model_3d = Main_Pretrain()
 
     def closeEvent(self, event):
         reply = QMessageBox.question(self, "info", "Are you sure to exit?",
@@ -461,7 +461,8 @@ class Main(QMainWindow, Ui_MainWindow):
 
     def config_pretrain_model_3d(self):
         """ config pretrain model 3d """
-        self.window_pretrain_model_3d.show()
+        pass
+        # self.window_pretrain_model_3d.show()
 
     def transfer_anno_vehicle_size(self, QModelIndex):
         row = self.listview_model_vehsize.stringList()[QModelIndex.row()]
@@ -670,16 +671,17 @@ class Main(QMainWindow, Ui_MainWindow):
 
             self.all_key_points = tp_veh_key_point_data.tolist()
             self.show_img_in_label(self.label_ImageDisplay, self.frame)
-        if self.pre_anno_dir is not None and self.pedes_mode:
+        if not os.path.exists(self.select_file_xml) and self.pre_anno_dir is not None and self.pedes_mode:
             pre_anno_path = os.path.join(self.pre_anno_dir, self.select_file.split("/")[-1][:-4] + "_bbox2d.txt")
             with open(pre_anno_path, "r", encoding="utf-8") as f:
                 pre_annos = f.readlines()
             for pre_anno in pre_annos:
                 pre_anno = pre_anno.strip("\n").split(" ")
                 cls_name = str(pre_anno[0])
-                if cls_name == "Non-motor" or cls_name == "Pedestrian":
+                if cls_name == "Pedestrian":
                     score = float(pre_anno[1])
-                    left, top, right, bottom = np.array(pre_anno[2:], dtype=np.int)
+                    left, top, right, bottom = np.array(pre_anno[2:], dtype=np.float)
+                    left, top, right, bottom = int(left), int(top), int(right), int(bottom)
 
                     self.list_box.append([left, top, right - left, bottom - top])
                     self.list_type.append(cls_name)
@@ -694,7 +696,7 @@ class Main(QMainWindow, Ui_MainWindow):
                     self.all_3dbbox_2dvertex.append(np.zeros((1, 16)))
                     self.all_3dbbox_3dvertex.append(np.zeros((1, 24)))
                     self.all_vehicle_location_3d.append(np.zeros((1, 3)))
-                    self.all_vehicle_location.append(np.zeros((1, 2)))
+                    self.all_vehicle_location.append([(left + right) / 2, (top + bottom) / 2])
                     self.all_veh_conf.append(score)
 
                     # draw 2D box
@@ -737,13 +739,14 @@ class Main(QMainWindow, Ui_MainWindow):
         # if annotation file exists, revise can be done.
         if self.frame is not None:
             self.spinBox_CurAnnNum.setValue(self.limit_spin_box_value(self.spinBox_CurAnnNum.value()))  # roll
-            if os.path.exists(self.select_file_xml):
+            if os.path.exists(self.select_file_xml) or self.pedes_mode:
                 self.obj_num = len(self.all_vehicle_type)
                 if (self.spinBox_CurAnnNum.value()) <= self.obj_num and self.spinBox_CurAnnNum.value() >= 1:
                     # self.spinBox_CurAnnNum.setMaximum(self.obj_num)  # max obj num
                     self.veh_box = self.all_veh_2dbbox[self.spinBox_CurAnnNum.value() - 1]
                     self.veh_type = self.all_vehicle_type[self.spinBox_CurAnnNum.value() - 1]
                     self.comboBox_CurAnnType.setCurrentIndex(dict_map_order_str[self.veh_type])
+                    self.veh_conf = self.all_veh_conf[self.spinBox_CurAnnNum.value() - 1]
 
                     self.perspective = self.all_perspective[self.spinBox_CurAnnNum.value() - 1]
                     if self.perspective == "left":
@@ -961,8 +964,8 @@ class Main(QMainWindow, Ui_MainWindow):
     def save_temp_annotation_results(self):
         """ save single obj annotation """
         # if annotation file exists, revise can be done.
-        if self.frame is not None:
-            if os.path.exists(self.select_file_xml):
+        if self.frame is not None and self.drawbox_img is not None:
+            if os.path.exists(self.select_file_xml) or self.pedes_mode:
                 self.frame = self.drawbox_img
                 if self.actionkeypoint_only.isChecked():
                     self.all_key_points[self.spinBox_CurAnnNum.value() - 1] = self.key_points
@@ -1012,7 +1015,7 @@ class Main(QMainWindow, Ui_MainWindow):
         if self.frame is not None:
             if self.all_3dbbox_2dvertex:
                 # save annotation img
-                cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.bmp", self.frame)
+                cv.imwrite(self.select_file[0:len(self.select_file)-4] + "_drawbbox_result.png", self.frame)
                 # if self.pre_anno_dir is not None:
                 #     xml_path = self.select_file[0:len(self.select_file)-4] + "_sup.xml"
                 # else:
@@ -1142,6 +1145,7 @@ class Main(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == '__main__':
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
     win = Main()
     win.show()
